@@ -71,6 +71,8 @@ type Order struct {
 	PaymentID       *string     `json:"payment_id,omitempty"`
 	IdempotencyKey  *string     `json:"-" gorm:"uniqueIndex"`
 	PaidAt          *time.Time  `json:"paid_at,omitempty"`
+	ShippedAt       *time.Time  `json:"shipped_at,omitempty"`
+	CompletedAt     *time.Time  `json:"completed_at,omitempty"`
 	CreatedAt       time.Time   `json:"created_at"`
 	UpdatedAt       time.Time   `json:"updated_at"`
 	Items           []OrderItem `json:"items,omitempty" gorm:"foreignKey:OrderID"`
@@ -203,3 +205,17 @@ type PaymentLog struct {
 }
 
 func (PaymentLog) TableName() string { return "payment_logs" }
+
+type ProfitShareRecord struct {
+	ID            uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	OrderID       uuid.UUID  `json:"order_id" gorm:"type:uuid;index"`
+	TotalAmount   float64    `json:"total_amount"`
+	PlatformFee   float64    `json:"platform_fee"`
+	SellerAmount  float64    `json:"seller_amount"`
+	Status        string     `json:"status" gorm:"default:pending"`
+	PaymentMethod string     `json:"payment_method"`
+	ReleasedAt    *time.Time `json:"released_at,omitempty"`
+	CreatedAt     time.Time  `json:"created_at"`
+}
+
+func (ProfitShareRecord) TableName() string { return "profit_share_records" }

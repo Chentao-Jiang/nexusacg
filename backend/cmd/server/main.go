@@ -105,6 +105,7 @@ func main() {
 		}
 	}
 	paymentSvc := payment.NewCallbackService(db, wechatClient, alipaySign)
+	profitShareSvc := service.NewProfitShareService(db, cfg.PlatformFeePercent, paymentSvc)
 
 	// Router
 	r := gin.Default()
@@ -130,7 +131,7 @@ func main() {
 	handler.NewProductHandler(v1, productSvc, categorySvc, authMW)
 	handler.NewPostHandler(v1, postSvc, authMW, moderationSvc)
 	handler.NewEventHandler(v1, eventSvc, authMW)
-	handler.NewOrderHandler(v1, orderSvc, authMW)
+	handler.NewOrderHandler(v1, orderSvc, profitShareSvc, authMW)
 	handler.NewPaymentHandler(v1, paymentSvc, authMW, cfg.BaseURL+"/api/v1/payments/alipay/callback")
 	handler.NewUploadHandler(v1, store, authMW)
 	handler.NewAdminHandler(v1, adminSvc, authMW)
@@ -146,6 +147,20 @@ func main() {
 			cancelPendingOrders(ctx, paymentSvc, timeout)
 			for range ticker.C {
 				cancelPendingOrders(ctx, paymentSvc, timeout)
+			}
+		}()
+	}
+
+	// Auto-release cron: complete shipped orders after configured days
+	if cfg.AutoReleaseDays > 0 {
+		go func() {
+			ticker := time.NewTicker(30 * time.Minute)
+			defer ticker.Stop()
+			log.Printf("auto-release cron started: completing shipped orders after %d days", cfg.AutoReleaseDays)
+			// Run immediately on startup
+			autoReleaseOrders(profitShareSvc, cfg.AutoReleaseDays)
+			for range ticker.C {
+				autoReleaseOrders(profitShareSvc, cfg.AutoReleaseDays)
 			}
 		}()
 	}
@@ -184,5 +199,16 @@ func cancelPendingOrders(ctx context.Context, svc *payment.CallbackService, time
 	}
 	if cancelled > 0 {
 		log.Printf("order timeout cron: cancelled %d pending orders", cancelled)
+	}
+}
+
+func autoReleaseOrders(svc *service.ProfitShareService, days int) {
+	released, err := svc.AutoReleaseOrders(days)
+	if err != nil {
+		log.Printf("auto-release cron error: %v", err)
+		return
+	}
+	if released > 0 {
+		log.Printf("auto-release cron: completed %d shipped orders", released)
 	}
 }

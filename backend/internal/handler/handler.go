@@ -642,11 +642,12 @@ type CreateEventRequest struct {
 }
 
 type OrderHandler struct {
-	svc *service.OrderService
+	svc        *service.OrderService
+	profitSvc  *service.ProfitShareService
 }
 
-func NewOrderHandler(r *gin.RouterGroup, svc *service.OrderService, authMW gin.HandlerFunc) {
-	h := &OrderHandler{svc: svc}
+func NewOrderHandler(r *gin.RouterGroup, svc *service.OrderService, profitSvc *service.ProfitShareService, authMW gin.HandlerFunc) {
+	h := &OrderHandler{svc: svc, profitSvc: profitSvc}
 
 	private := r.Group("/orders")
 	private.Use(authMW)
@@ -656,6 +657,8 @@ func NewOrderHandler(r *gin.RouterGroup, svc *service.OrderService, authMW gin.H
 	private.POST("/:order_no/pay", h.Pay)
 	private.POST("/:order_no/cancel", h.Cancel)
 	private.POST("/:order_no/refund", h.Refund)
+	private.POST("/:order_no/ship", h.Ship)
+	private.POST("/:order_no/confirm", h.Confirm)
 }
 
 // CreateOrder godoc
@@ -855,4 +858,55 @@ func (h *OrderHandler) Pay(c *gin.Context) {
 	}
 
 	Success(c, gin.H{"status": "paid"})
+}
+
+// ShipOrder godoc
+// @Summary Ship an order
+// @Description Mark a paid order as shipped (requires auth, seller only)
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param order_no path string true "Order number"
+// @Param request body ShipOrderRequest false "Shipping info"
+// @Success 200 {object} Response
+// @Failure 400 {object} Response
+// @Security BearerAuth
+// @Router /orders/{order_no}/ship [post]
+func (h *OrderHandler) Ship(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	uid := userID.(string)
+
+	if err := h.profitSvc.ShipOrder(c.Param("order_no"), uid); err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
+
+	Success(c, gin.H{"status": "shipped"})
+}
+
+// ConfirmReceipt godoc
+// @Summary Confirm receipt of an order
+// @Description Mark a shipped order as completed and trigger profit sharing (requires auth, buyer only)
+// @Tags orders
+// @Produce json
+// @Param order_no path string true "Order number"
+// @Success 200 {object} Response
+// @Failure 400 {object} Response
+// @Security BearerAuth
+// @Router /orders/{order_no}/confirm [post]
+func (h *OrderHandler) Confirm(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	uid := userID.(string)
+
+	if err := h.profitSvc.ConfirmReceipt(c.Param("order_no"), uid); err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
+
+	Success(c, gin.H{"status": "completed"})
+}
+
+type ShipOrderRequest struct {
+	TrackingNumber string `json:"tracking_number"`
+	Carrier        string `json:"carrier"`
 }

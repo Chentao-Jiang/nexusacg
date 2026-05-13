@@ -48,6 +48,9 @@ type Config struct {
 	SMSAuthSchemeName string // Scheme name for SMS Auth API (optional, defaults to "默认方案")
 	// Order timeout
 	OrderTimeoutMinutes int           // Minutes before pending orders are auto-cancelled
+	// Profit sharing
+	PlatformFeePercent float64 // Platform fee percentage (default 0.05)
+	AutoReleaseDays    int     // Days before shipped orders are auto-completed (default 7)
 }
 
 func Load() *Config {
@@ -86,6 +89,8 @@ func Load() *Config {
 		SMSTemplateCode:      getEnv("SMS_TEMPLATE_CODE", ""),
 		SMSAuthSchemeName:    getEnv("SMS_AUTH_SCHEME_NAME", ""),
 		OrderTimeoutMinutes:  func() int { v := 0; fmt.Sscanf(getEnv("ORDER_TIMEOUT_MINUTES", "30"), "%d", &v); return v }(),
+		PlatformFeePercent:   func() float64 { v := 0.05; fmt.Sscanf(getEnv("PLATFORM_FEE_PERCENT", "0.05"), "%f", &v); return v }(),
+		AutoReleaseDays:      func() int { v := 7; fmt.Sscanf(getEnv("AUTO_RELEASE_DAYS", "7"), "%d", &v); return v }(),
 	}
 
 	// Validate JWT secret is set in production

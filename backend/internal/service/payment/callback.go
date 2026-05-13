@@ -450,3 +450,28 @@ func parseFloat(s string) float64 {
 	fmt.Sscanf(s, "%f", &f)
 	return f
 }
+
+// ReleaseWechatFunds calls WeChat Pay profit-sharing API to release escrow funds.
+// Requires merchant account with profit-sharing feature enabled.
+func (s *CallbackService) ReleaseWechatFunds(order *model.Order, platformFee, sellerAmount float64) error {
+	if s.wechatClient == nil {
+		return fmt.Errorf("wechat pay not configured")
+	}
+	// TODO: Implement WeChat Pay profit-sharing API call when merchant account is available.
+	// Requires: 1. Enable profit-sharing on merchant account 2. Upload receiver accounts
+	// API: POST /v3/profitsharing/orders
+	log.Printf("wechat profit sharing: not yet implemented for order %s", order.OrderNo)
+	return nil
+}
+
+// ReleaseAlipayFunds calls Alipay settle API to release escrow funds.
+// Requires merchant account with settlement feature enabled.
+func (s *CallbackService) ReleaseAlipayFunds(order *model.Order, platformFee, sellerAmount float64) error {
+	if s.alipayVerifier == nil || s.alipayVerifier.Client == nil {
+		return fmt.Errorf("alipay not configured")
+	}
+	// TODO: Implement Alipay profit-sharing API call when merchant account is available.
+	// API: alipay.trade.order.settle
+	log.Printf("alipay profit sharing: not yet implemented for order %s", order.OrderNo)
+	return nil
+}
