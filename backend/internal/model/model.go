@@ -103,7 +103,7 @@ type Post struct {
 	Status       string      `json:"status" gorm:"default:pending_review;index"`
 	CreatedAt    time.Time   `json:"created_at"`
 	UpdatedAt    time.Time   `json:"updated_at"`
-	Author       *User       `json:"author,omitempty" gorm:"foreignKey:ID;references:UserID"`
+	Author       *User       `json:"author,omitempty" gorm:"foreignKey:UserID;references:ID"`
 }
 
 func (Post) TableName() string { return "posts" }
@@ -116,7 +116,7 @@ type Comment struct {
 	ParentID  *uuid.UUID `json:"parent_id,omitempty" gorm:"type:uuid"`
 	Status    string    `json:"status" gorm:"default:pending_review"`
 	CreatedAt time.Time `json:"created_at"`
-	Author    *User     `json:"author,omitempty" gorm:"foreignKey:ID;references:UserID"`
+	Author    *User     `json:"author,omitempty" gorm:"foreignKey:UserID;references:ID"`
 }
 
 func (Comment) TableName() string { return "comments" }
