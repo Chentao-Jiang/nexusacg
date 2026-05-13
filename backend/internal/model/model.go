@@ -7,7 +7,7 @@ import (
 )
 
 type User struct {
-	ID           uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID           uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	Phone        *string   `json:"phone,omitempty" gorm:"uniqueIndex"`
 	Email        *string   `json:"email,omitempty" gorm:"uniqueIndex"`
 	WechatOpenID *string   `json:"-" gorm:"uniqueIndex"`
@@ -25,7 +25,7 @@ type User struct {
 func (User) TableName() string { return "users" }
 
 type Category struct {
-	ID        uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID        uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	Name      string     `json:"name"`
 	Zone      string     `json:"zone" gorm:"index"`
 	ParentID  *uuid.UUID `json:"parent_id,omitempty"`
@@ -37,7 +37,7 @@ type Category struct {
 func (Category) TableName() string { return "categories" }
 
 type Product struct {
-	ID            uuid.UUID    `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID            uuid.UUID    `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	SellerID      uuid.UUID    `json:"seller_id" gorm:"type:uuid;index"`
 	CategoryID    *uuid.UUID   `json:"category_id,omitempty" gorm:"type:uuid"`
 	Name          string       `json:"name"`
@@ -60,7 +60,7 @@ type Product struct {
 func (Product) TableName() string { return "products" }
 
 type Order struct {
-	ID              uuid.UUID   `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID              uuid.UUID   `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	UserID          uuid.UUID   `json:"user_id" gorm:"type:uuid;index"`
 	OrderNo         string      `json:"order_no" gorm:"uniqueIndex"`
 	TotalAmount     float64     `json:"total_amount"`
@@ -79,7 +79,7 @@ type Order struct {
 func (Order) TableName() string { return "orders" }
 
 type OrderItem struct {
-	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	OrderID   uuid.UUID `json:"order_id" gorm:"type:uuid"`
 	ProductID uuid.UUID `json:"product_id" gorm:"type:uuid"`
 	Quantity  int       `json:"quantity" gorm:"default:1"`
@@ -90,7 +90,7 @@ type OrderItem struct {
 func (OrderItem) TableName() string { return "order_items" }
 
 type Post struct {
-	ID           uuid.UUID   `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID           uuid.UUID   `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	UserID       uuid.UUID   `json:"user_id" gorm:"type:uuid;index"`
 	Title        string      `json:"title"`
 	Content      string      `json:"content"`
@@ -109,7 +109,7 @@ type Post struct {
 func (Post) TableName() string { return "posts" }
 
 type Comment struct {
-	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	PostID    uuid.UUID `json:"post_id" gorm:"type:uuid;index"`
 	UserID    uuid.UUID `json:"user_id" gorm:"type:uuid;index"`
 	Content   string    `json:"content"`
@@ -122,7 +122,7 @@ type Comment struct {
 func (Comment) TableName() string { return "comments" }
 
 type Like struct {
-	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	UserID    uuid.UUID `json:"user_id" gorm:"type:uuid"`
 	PostID    uuid.UUID `json:"post_id" gorm:"type:uuid;index"`
 	CreatedAt time.Time `json:"created_at"`
@@ -131,7 +131,7 @@ type Like struct {
 func (Like) TableName() string { return "likes" }
 
 type Group struct {
-	ID          uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID          uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
 	CoverURL    *string   `json:"cover_url,omitempty"`
@@ -144,7 +144,7 @@ type Group struct {
 func (Group) TableName() string { return "groups" }
 
 type Event struct {
-	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	Name      string    `json:"name"`
 	Description string  `json:"description"`
 	CoverURL  *string   `json:"cover_url,omitempty"`
@@ -162,7 +162,7 @@ type Event struct {
 func (Event) TableName() string { return "events" }
 
 type ServiceProvider struct {
-	ID              uuid.UUID   `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID              uuid.UUID   `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	UserID          uuid.UUID   `json:"user_id" gorm:"type:uuid"`
 	Type            string      `json:"type" gorm:"index"`
 	Description     string      `json:"description"`
@@ -179,7 +179,7 @@ type ServiceProvider struct {
 func (ServiceProvider) TableName() string { return "service_providers" }
 
 type RefreshToken struct {
-	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	UserID    uuid.UUID `json:"user_id" gorm:"type:uuid;index"`
 	Token     string    `json:"-"`
 	ExpiresAt time.Time `json:"expires_at"`
@@ -190,7 +190,7 @@ func (RefreshToken) TableName() string { return "refresh_tokens" }
 
 // PaymentLog records every payment provider callback for audit and idempotency.
 type PaymentLog struct {
-	ID             uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID             uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	OrderID        uuid.UUID `json:"order_id" gorm:"type:uuid;index"`
 	PaymentMethod  string    `json:"payment_method" gorm:"index"`            // wechat, alipay
 	TransactionID  string    `json:"transaction_id" gorm:"uniqueIndex"`     // provider's transaction ID
