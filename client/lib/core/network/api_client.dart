@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nexusacg/core/constants/app_constants.dart';
@@ -60,5 +61,23 @@ class ApiClient {
 
   Future<Response<T>> delete<T>(String path) async {
     return _dio.delete<T>(path);
+  }
+
+  Future<String?> uploadVideo(File file, {void Function(int, int)? onProgress}) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(file.path),
+    });
+    final response = await _dio.post(
+      '/upload/video',
+      data: formData,
+      options: Options(
+        headers: {'Content-Type': 'multipart/form-data'},
+        sendTimeout: const Duration(minutes: 2),
+      ),
+      onSendProgress: onProgress,
+    );
+    final data = response.data;
+    if (data['url'] != null) return data['url'] as String;
+    return null;
   }
 }

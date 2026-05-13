@@ -66,7 +66,7 @@ class PostRepository {
 class EventRepository {
   final ApiClient _api = ApiClient();
 
-  Future<List<EventModel>> getEvents({
+  Future<({List<EventModel> items, int total})> getEvents({
     int page = 1,
     int pageSize = 20,
     String? status,
@@ -78,9 +78,51 @@ class EventRepository {
     final data = response.data;
     if (data['code'] == 0 && data['data'] != null) {
       final items = data['data']['items'] as List;
-      return items.map((e) => EventModel.fromJson(e as Map<String, dynamic>)).toList();
+      final total = data['data']['total'] as int? ?? 0;
+      return (
+        items: items.map((e) => EventModel.fromJson(e as Map<String, dynamic>)).toList(),
+        total: total,
+      );
     }
-    return [];
+    return (items: [], total: 0);
+  }
+
+  Future<EventModel?> getEvent(String id) async {
+    final response = await _api.get('/events/$id');
+    final data = response.data;
+    if (data['code'] == 0 && data['data'] != null) {
+      return EventModel.fromJson(data['data'] as Map<String, dynamic>);
+    }
+    return null;
+  }
+
+  Future<EventModel?> createEvent({
+    required String name,
+    required String description,
+    required DateTime startTime,
+    required DateTime endTime,
+    required String address,
+    double? latitude,
+    double? longitude,
+    String? coverUrl,
+  }) async {
+    final body = <String, dynamic>{
+      'name': name,
+      'description': description,
+      'start_time': startTime.toIso8601String(),
+      'end_time': endTime.toIso8601String(),
+      'address': address,
+    };
+    if (latitude != null) body['latitude'] = latitude;
+    if (longitude != null) body['longitude'] = longitude;
+    if (coverUrl != null) body['cover_url'] = coverUrl;
+
+    final response = await _api.post('/events', data: body);
+    final data = response.data;
+    if (data['code'] == 0 && data['data'] != null) {
+      return EventModel.fromJson(data['data'] as Map<String, dynamic>);
+    }
+    return null;
   }
 }
 

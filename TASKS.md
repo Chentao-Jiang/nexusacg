@@ -45,9 +45,7 @@
 ### 1.4 活动模块 [COMPLETED]
 - [x] 活动 CRUD + 列表 (`internal/service/event.go`) — 集成测试通过（含时间解析）
 - [x] 活动模型：时间/地址/LBS (`internal/model/model.go` Event) — RFC3339 时间解析
-- [ ] 漫展 AI 信息爬取聚合
-- [ ] 高德地图 Flutter 集成
-- [ ] 活动签到功能
+- [ ] 活动列表 + 详情（C 端发起，功能与漫展一致，积累客户群后再开放）
 
 ### 1.5 订单模块 [COMPLETED]
 - [x] 创建订单 (`internal/service/order.go`) — 集成测试通过（事务 + 原子库存扣减）
@@ -143,7 +141,6 @@
 - [ ] 高德地图 Flutter 集成
 - [ ] 附近漫展/活动查询
 - [ ] 活动导航
-- [ ] 活动签到
 - [ ] 服务者排期与活动关联
 
 ### 2.5 兴趣圈层

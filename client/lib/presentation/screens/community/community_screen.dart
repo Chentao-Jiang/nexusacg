@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:nexusacg/core/models/models.dart';
+import 'package:nexusacg/core/repositories/repositories.dart';
+import 'package:nexusacg/presentation/screens/community/post_detail_screen.dart';
 
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
@@ -10,8 +12,11 @@ class CommunityScreen extends StatefulWidget {
 }
 
 class _CommunityScreenState extends State<CommunityScreen> {
-  final List<PostModel> _posts = []; // Placeholder - load from API
+  final _repo = PostRepository();
+  List<PostModel> _posts = [];
   bool _loading = true;
+  int _page = 1;
+  bool _hasMore = true;
 
   @override
   void initState() {
@@ -20,36 +25,81 @@ class _CommunityScreenState extends State<CommunityScreen> {
   }
 
   Future<void> _loadPosts() async {
-    // TODO: Load from API
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() {
-      _loading = false;
-    });
+    setState(() => _loading = true);
+    try {
+      final result = await _repo.getPosts(page: _page);
+      setState(() {
+        _posts = result.items;
+        _hasMore = result.items.length >= 20;
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() => _loading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('加载失败: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (!_hasMore) return;
+    final nextPage = _page + 1;
+    try {
+      final result = await _repo.getPosts(page: nextPage);
+      setState(() {
+        _posts.addAll(result.items);
+        _page = nextPage;
+        _hasMore = result.items.length >= 20;
+      });
+    } catch (e) {
+      // Ignore load more errors
+    }
+  }
+
+  void _goToDetail(PostModel post) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => PostDetailScreen(post: post)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('社区'),
-        actions: [
-          IconButton(icon: const Icon(Icons.add_circle_outline), onPressed: () {}),
-        ],
-      ),
+      appBar: AppBar(title: const Text('社区')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _loadPosts,
               child: _posts.isEmpty
                   ? const Center(child: Text('暂无内容，快来发第一条帖子吧！'))
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(12),
-                      itemCount: _posts.length,
-                      itemBuilder: (context, index) => _PostCard(_posts[index]),
+                  : NotificationListener<ScrollNotification>(
+                      onNotification: (notification) {
+                        if (notification is ScrollEndNotification &&
+                            notification.metrics.pixels >=
+                                notification.metrics.maxScrollExtent * 0.8) {
+                          _loadMore();
+                        }
+                        return false;
+                      },
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(12),
+                        itemCount: _posts.length,
+                        itemBuilder: (context, index) => GestureDetector(
+                          onTap: () => _goToDetail(_posts[index]),
+                          child: _PostCard(_posts[index]),
+                        ),
+                      ),
                     ),
             ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('发帖功能开发中')),
+          );
+        },
         child: const Icon(Icons.edit),
       ),
     );
@@ -79,7 +129,10 @@ class _PostCard extends StatelessWidget {
                   child: post.author?.avatarUrl == null ? const Icon(Icons.person) : null,
                 ),
                 const SizedBox(width: 8),
-                Text(post.author?.nickname ?? '用户', style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  post.author?.nickname ?? '用户',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const Spacer(),
                 Text(_timeAgo(post.createdAt), style: const TextStyle(color: Colors.grey, fontSize: 12)),
               ],
@@ -90,6 +143,43 @@ class _PostCard extends StatelessWidget {
             ],
             const SizedBox(height: 8),
             Text(post.content, maxLines: 5, overflow: TextOverflow.ellipsis),
+
+            // Video thumbnail
+            if (post.videoUrl != null) ...[
+              const SizedBox(height: 8),
+              Stack(
+                children: [
+                  Container(
+                    height: 200,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.play_circle_outline, size: 48, color: Colors.white70),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        '视频',
+                        style: TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
+            // Images
             if (post.images.isNotEmpty) ...[
               const SizedBox(height: 8),
               SizedBox(
@@ -119,7 +209,11 @@ class _PostCard extends StatelessWidget {
               const SizedBox(height: 8),
               Wrap(
                 spacing: 6,
-                children: post.tags.map((t) => Chip(label: Text('#$t', style: const TextStyle(fontSize: 11)), padding: EdgeInsets.zero, visualDensity: VisualDensity.compact)).toList(),
+                children: post.tags.map((t) => Chip(
+                  label: Text('#$t', style: const TextStyle(fontSize: 11)),
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                )).toList(),
               ),
             ],
             const SizedBox(height: 12),
