@@ -16,6 +16,7 @@ func NewUploadHandler(r *gin.RouterGroup, store storage.Storage, authMW gin.Hand
 
 	public := r.Group("/upload")
 	public.POST("", h.Upload)
+	public.POST("/video", h.UploadVideo)
 
 	private := r.Group("/upload")
 	private.Use(authMW)
@@ -23,16 +24,42 @@ func NewUploadHandler(r *gin.RouterGroup, store storage.Storage, authMW gin.Hand
 }
 
 // UploadFile godoc
-// @Summary Upload file
-// @Description Upload a file (image/document)
+// @Summary Upload file (image)
+// @Description Upload an image file (jpg, jpeg, png, gif, webp, max 10MB)
 // @Tags upload
 // @Accept multipart/form-data
 // @Produce json
-// @Param file formData file true "File to upload"
+// @Param file formData file true "Image file to upload"
 // @Success 200 {object} map[string]string "Upload response with URL"
 // @Failure 400 {object} map[string]string "Error response"
 // @Router /upload [post]
 func (h *UploadHandler) Upload(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing file field"})
+		return
+	}
+
+	url, err := h.store.Upload(file)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"url": url})
+}
+
+// UploadVideo godoc
+// @Summary Upload video file
+// @Description Upload a video file (mp4, webm, mov, max 50MB)
+// @Tags upload
+// @Accept multipart/form-data
+// @Produce json
+// @Param file formData file true "Video file to upload"
+// @Success 200 {object} map[string]string "Upload response with URL"
+// @Failure 400 {object} map[string]string "Error response"
+// @Router /upload/video [post]
+func (h *UploadHandler) UploadVideo(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing file field"})
