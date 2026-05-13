@@ -40,12 +40,14 @@
 - [x] 评论功能 (`internal/model/model.go` Comment) — ParentID 验证 + 审核状态
 - [x] 帖子搜索（关键词 ILIKE title/content，多词分词搜索）— 集成测试通过
 - [x] 评论嵌套回复 + 分页（ParentID 字段 + ListComments API）— 集成测试通过
-- [ ] 视频上传 + VOD 集成（需阿里云/腾讯云 VOD）
+- [x] 视频上传 + VOD 集成（后端支持视频上传 mp4/webm/mov，50MB 限制；Flutter 视频播放器集成）
 
 ### 1.4 活动模块 [COMPLETED]
 - [x] 活动 CRUD + 列表 (`internal/service/event.go`) — 集成测试通过（含时间解析）
 - [x] 活动模型：时间/地址/LBS (`internal/model/model.go` Event) — RFC3339 时间解析
-- [ ] 活动列表 + 详情（C 端发起，功能与漫展一致，积累客户群后再开放）
+- [x] 活动列表 + 详情 Flutter 页面（API 对接，分页加载，详情含状态标签/时间/地址）
+- [x] 活动创建功能（Flutter 创建页面 + 表单验证，C 端发起，暂设用户阈值门控）
+- [x] 漫展 AI 信息爬取聚合（event_crawler.go，bilibili + acg17 爬取 + 种子数据 fallback）
 
 ### 1.5 订单模块 [COMPLETED]
 - [x] 创建订单 (`internal/service/order.go`) — 集成测试通过（事务 + 原子库存扣减）
