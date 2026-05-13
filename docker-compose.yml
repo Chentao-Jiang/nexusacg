@@ -1,0 +1,68 @@
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nexusacg-api
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=db
+      - REDIS_HOST=redis
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./alipay_app_private_key.pem:/app/alipay_app_private_key.pem:ro
+      - ./alipay_public_key.pem:/app/alipay_public_key.pem:ro
+    restart: unless-stopped
+    networks:
+      - nexusacg-net
+
+  db:
+    image: postgres:16-alpine
+    container_name: nexusacg-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: nexusacg
+      POSTGRES_USER: nexusacg
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-nexusacg_dev_pass}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexusacg -d nexusacg"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - nexusacg-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: nexusacg-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - nexusacg-net
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  nexusacg-net:
+    driver: bridge

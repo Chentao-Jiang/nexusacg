@@ -1,0 +1,50 @@
+# Build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+server
+nexusacg
+
+# Test files
+*_test.go
+*_mock.go
+*_test.txt
+coverage.out
+coverage.html
+
+# Version control
+.git
+.gitignore
+
+# Documentation
+docs/
+README.md
+TASKS.md
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Uploads (should not be baked into image)
+uploads/
+
+# Local env files (paths are host-specific)
+.env
+.env.local
+
+# Docker files
+Dockerfile
+.dockerignore
+
+# PEM keys (mounted at runtime, not baked in)
+*.pem

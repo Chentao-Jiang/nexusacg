@@ -1,0 +1,8 @@
+export ALIPAY_APP_ID="2021006153686187"
+export ALIPAY_APP_PRIVATE_KEY_PATH="/home/jct/nexusacg/alipay_app_private_key.pem"
+export ALIPAY_PUBLIC_KEY_PATH="/home/jct/nexusacg/alipay_public_key.pem"
+export ALIPAY_SANDBOX="true"
+echo "ALIPAY_APP_ID=$ALIPAY_APP_ID"
+echo "ALIPAY_APP_PRIVATE_KEY_PATH=$ALIPAY_APP_PRIVATE_KEY_PATH"
+echo "ALIPAY_PUBLIC_KEY_PATH=$ALIPAY_PUBLIC_KEY_PATH"
+echo "ALIPAY_SANDBOX=$ALIPAY_SANDBOX"

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://railway.app/railway.schema",
+  "build": {
+    "builder": "NIXPACKS",
+    "nixpacksPlan": {
+      "phases": {
+        "setup": {
+          "nixPkgs": ["go_1_23"]
+        }
+      }
+    }
+  },
+  "deploy": {
+    "startCommand": "./backend/nexusacg",
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 10,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3
+  }
+}

@@ -1,0 +1,1455 @@
+definitions:
+  github_com_planforever_nexusacg_internal_service.CreateCategoryInput:
+    properties:
+      icon_url:
+        type: string
+      name:
+        type: string
+      parent_id:
+        type: string
+      sort_order:
+        type: integer
+      zone:
+        type: string
+    required:
+    - name
+    - zone
+    type: object
+  github_com_planforever_nexusacg_internal_service.UpdateCategoryInput:
+    properties:
+      icon_url:
+        type: string
+      name:
+        type: string
+      parent_id:
+        type: string
+      sort_order:
+        type: integer
+      zone:
+        type: string
+    type: object
+  internal_handler.CreateCommentRequest:
+    properties:
+      content:
+        maxLength: 2000
+        type: string
+      parent_id:
+        type: string
+    required:
+    - content
+    type: object
+  internal_handler.CreateEventRequest:
+    properties:
+      address:
+        type: string
+      cover_url:
+        type: string
+      description:
+        type: string
+      end_time:
+        type: string
+      latitude:
+        type: number
+      longitude:
+        type: number
+      name:
+        type: string
+      start_time:
+        type: string
+    required:
+    - address
+    - end_time
+    - name
+    - start_time
+    type: object
+  internal_handler.CreateOrderRequest:
+    properties:
+      idempotency_key:
+        type: string
+      items:
+        items:
+          properties:
+            product_id:
+              type: string
+            quantity:
+              type: integer
+          required:
+          - product_id
+          - quantity
+          type: object
+        minItems: 1
+        type: array
+    required:
+    - items
+    type: object
+  internal_handler.CreatePostRequest:
+    properties:
+      content:
+        maxLength: 10000
+        type: string
+      images:
+        items:
+          type: string
+        maxItems: 20
+        type: array
+      tags:
+        items:
+          type: string
+        maxItems: 10
+        type: array
+      title:
+        maxLength: 200
+        type: string
+      video_url:
+        type: string
+    required:
+    - content
+    type: object
+  internal_handler.CreateProductRequest:
+    properties:
+      anime_name:
+        type: string
+      category_id:
+        type: string
+      character_name:
+        type: string
+      description:
+        maxLength: 5000
+        type: string
+      images:
+        items:
+          type: string
+        maxItems: 20
+        type: array
+      name:
+        maxLength: 200
+        minLength: 1
+        type: string
+      original_price:
+        type: number
+      price:
+        type: number
+      source_type:
+        enum:
+        - official
+        - agent
+        - self_made
+        type: string
+      stock:
+        maximum: 999999
+        minimum: 0
+        type: integer
+      tags:
+        items:
+          type: string
+        maxItems: 10
+        type: array
+      zone:
+        enum:
+        - cosplay
+        - peripheral
+        type: string
+    required:
+    - name
+    - price
+    - source_type
+    - zone
+    type: object
+  internal_handler.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+      phone:
+        type: string
+    required:
+    - password
+    type: object
+  internal_handler.PayRequest:
+    properties:
+      payment_id:
+        type: string
+      payment_method:
+        enum:
+        - wechat
+        - alipay
+        type: string
+    required:
+    - payment_id
+    - payment_method
+    type: object
+  internal_handler.PrepayRequest:
+    properties:
+      amount:
+        description: amount in cents (fen)
+        type: integer
+      description:
+        type: string
+      order_no:
+        type: string
+      payment_type:
+        enum:
+        - wechat
+        - alipay
+        type: string
+    required:
+    - amount
+    - description
+    - order_no
+    - payment_type
+    type: object
+  internal_handler.RefreshRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  internal_handler.RegisterRequest:
+    properties:
+      email:
+        maxLength: 255
+        type: string
+      nickname:
+        maxLength: 50
+        minLength: 1
+        type: string
+      password:
+        maxLength: 128
+        minLength: 6
+        type: string
+      phone:
+        maxLength: 20
+        type: string
+    required:
+    - nickname
+    - password
+    type: object
+  internal_handler.Response:
+    properties:
+      code:
+        type: integer
+      data: {}
+      message:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /admin/orders:
+    get:
+      description: List all orders with optional status filter (admin only)
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      - description: Filter by order status
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: List all orders
+      tags:
+      - admin
+  /admin/orders/{order_no}/refund:
+    post:
+      description: Process a refund for an order (admin only)
+      parameters:
+      - description: Order number
+        in: path
+        name: order_no
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: Refund order
+      tags:
+      - admin
+  /admin/posts/{id}/approve:
+    post:
+      description: Approve a pending post (admin only)
+      parameters:
+      - description: Post UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: Approve post
+      tags:
+      - admin
+  /admin/posts/{id}/reject:
+    post:
+      description: Reject a pending post (admin only)
+      parameters:
+      - description: Post UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: Reject post
+      tags:
+      - admin
+  /admin/posts/pending:
+    get:
+      description: List posts awaiting admin approval
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: List pending posts
+      tags:
+      - admin
+  /admin/products/{id}/approve:
+    post:
+      description: Approve a pending product (admin only)
+      parameters:
+      - description: Product UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: Approve product
+      tags:
+      - admin
+  /admin/products/{id}/reject:
+    post:
+      description: Reject a pending product (admin only)
+      parameters:
+      - description: Product UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: Reject product
+      tags:
+      - admin
+  /admin/products/pending:
+    get:
+      description: List products awaiting admin approval
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: List pending products
+      tags:
+      - admin
+  /admin/stats:
+    get:
+      description: Get platform dashboard statistics (admin only)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: Dashboard stats
+      tags:
+      - admin
+  /admin/users:
+    get:
+      description: List all users (admin only)
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: List users
+      tags:
+      - admin
+  /admin/users/{id}/ban:
+    post:
+      description: Ban a user account (admin only)
+      parameters:
+      - description: User UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: Ban user
+      tags:
+      - admin
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Login with phone/email and password, returns JWT tokens
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      summary: User login
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Use a refresh token to get a new access/refresh token pair
+      parameters:
+      - description: Refresh token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      summary: Refresh access token
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register with phone/email, password, and nickname
+      parameters:
+      - description: Registration info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      summary: Register a new user
+      tags:
+      - auth
+  /events:
+    get:
+      description: List events with pagination
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      summary: List events
+      tags:
+      - events
+    post:
+      consumes:
+      - application/json
+      description: Create a new event (requires auth)
+      parameters:
+      - description: Event info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.CreateEventRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: Create event
+      tags:
+      - events
+  /events/{id}:
+    get:
+      description: Get a single event by ID
+      parameters:
+      - description: Event UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      summary: Get event detail
+      tags:
+      - events
+  /orders:
+    get:
+      description: List orders for the authenticated user (requires auth)
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      - description: Filter by order status
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: List my orders
+      tags:
+      - orders
+    post:
+      consumes:
+      - application/json
+      description: Create a new order with product items (requires auth)
+      parameters:
+      - description: Order items
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.CreateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: Create order
+      tags:
+      - orders
+  /orders/{order_no}:
+    get:
+      description: Get order details by order number (requires auth)
+      parameters:
+      - description: Order number
+        in: path
+        name: order_no
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: Get order detail
+      tags:
+      - orders
+  /orders/{order_no}/cancel:
+    post:
+      description: Cancel a pending order (requires auth)
+      parameters:
+      - description: Order number
+        in: path
+        name: order_no
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: Cancel an order
+      tags:
+      - orders
+  /orders/{order_no}/pay:
+    post:
+      consumes:
+      - application/json
+      description: Record payment for an order (requires auth)
+      parameters:
+      - description: Order number
+        in: path
+        name: order_no
+        required: true
+        type: string
+      - description: Payment method and ID
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.PayRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: Pay for an order
+      tags:
+      - orders
+  /orders/{order_no}/refund:
+    post:
+      description: Process a refund for an order (requires auth)
+      parameters:
+      - description: Order number
+        in: path
+        name: order_no
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: Refund an order
+      tags:
+      - orders
+  /payments/alipay/callback:
+    post:
+      description: Handle Alipay payment callback (called by Alipay server)
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: success response
+          schema:
+            type: string
+        "400":
+          description: error response
+          schema:
+            type: string
+      summary: Alipay callback
+      tags:
+      - payments
+  /payments/alipay/verify:
+    get:
+      description: Verify Alipay SDK configuration for debugging
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      summary: Verify Alipay SDK
+      tags:
+      - payments
+  /payments/logs:
+    get:
+      description: Get payment logs for audit
+      parameters:
+      - description: Filter by order ID
+        in: query
+        name: order_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      summary: Payment logs
+      tags:
+      - payments
+  /payments/prepay:
+    post:
+      consumes:
+      - application/json
+      description: Create a unified payment order (WeChat or Alipay) and return client
+        parameters
+      parameters:
+      - description: Payment order info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.PrepayRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: Create payment order
+      tags:
+      - payments
+  /payments/wechat/callback:
+    post:
+      consumes:
+      - application/json
+      description: Handle WeChat Pay payment callback (called by WeChat server)
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: success response
+          schema:
+            type: string
+        "500":
+          description: error response
+          schema:
+            type: string
+      summary: WeChat Pay callback
+      tags:
+      - payments
+  /posts:
+    get:
+      description: List posts with pagination
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      summary: List posts
+      tags:
+      - posts
+    post:
+      consumes:
+      - application/json
+      description: Create a new post with content, images, and tags (requires auth)
+      parameters:
+      - description: Post info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.CreatePostRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: Create post
+      tags:
+      - posts
+  /posts/{id}:
+    get:
+      description: Get a single post by ID
+      parameters:
+      - description: Post UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      summary: Get post detail
+      tags:
+      - posts
+  /posts/{id}/comments:
+    get:
+      description: Get comments for a post
+      parameters:
+      - description: Post UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      summary: List post comments
+      tags:
+      - posts
+    post:
+      consumes:
+      - application/json
+      description: Add a comment to a post (requires auth)
+      parameters:
+      - description: Post UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Comment content and optional parent_id
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.CreateCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: Create comment
+      tags:
+      - posts
+  /posts/{id}/like:
+    delete:
+      description: Remove like from a post (requires auth)
+      parameters:
+      - description: Post UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: Unlike a post
+      tags:
+      - posts
+    post:
+      description: Like a post (requires auth)
+      parameters:
+      - description: Post UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: Like a post
+      tags:
+      - posts
+  /products:
+    get:
+      description: List products with pagination, filtering by zone/source_type/category
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      - description: Filter by zone (cosplay/peripheral)
+        in: query
+        name: zone
+        type: string
+      - description: Filter by source type (official/agent/self_made)
+        in: query
+        name: source_type
+        type: string
+      - description: Filter by category UUID
+        in: query
+        name: category_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      summary: List products
+      tags:
+      - products
+    post:
+      consumes:
+      - application/json
+      description: Create a new product listing (requires auth)
+      parameters:
+      - description: Product info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.CreateProductRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: Create product
+      tags:
+      - products
+  /products/{id}:
+    get:
+      description: Get a single product by ID
+      parameters:
+      - description: Product UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      summary: Get product detail
+      tags:
+      - products
+  /products/categories:
+    get:
+      description: List product categories
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      summary: List categories
+      tags:
+      - products
+    post:
+      consumes:
+      - application/json
+      description: Create a new product category (requires auth)
+      parameters:
+      - description: Category info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_planforever_nexusacg_internal_service.CreateCategoryInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: Create category
+      tags:
+      - products
+  /products/categories/{id}:
+    delete:
+      description: Delete a product category (requires auth)
+      parameters:
+      - description: Category UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete category
+      tags:
+      - products
+    put:
+      consumes:
+      - application/json
+      description: Update a product category (requires auth)
+      parameters:
+      - description: Category UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated category info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_planforever_nexusacg_internal_service.UpdateCategoryInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.Response'
+      security:
+      - BearerAuth: []
+      summary: Update category
+      tags:
+      - products
+  /upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a file (image/document)
+      parameters:
+      - description: File to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Upload response with URL
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Error response
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Upload file
+      tags:
+      - upload
+  /upload/{filename}:
+    delete:
+      description: Delete an uploaded file by filename (requires auth)
+      parameters:
+      - description: Filename to delete
+        in: path
+        name: filename
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Delete response
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "400":
+          description: Error response
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: File not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete uploaded file
+      tags:
+      - upload
+swagger: "2.0"

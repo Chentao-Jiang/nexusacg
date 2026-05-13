@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>次元链 NexusACG - 管理后台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f7fa; color: #333; }
+        .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 240px; background: linear-gradient(180deg, #6366f1, #4f46e5); color: #fff; padding: 20px 0; }
+        .sidebar h1 { padding: 0 20px 20px; font-size: 20px; border-bottom: 1px solid rgba(255,255,255,0.15); margin-bottom: 10px; }
+        .sidebar nav a { display: block; padding: 12px 20px; color: rgba(255,255,255,0.8); text-decoration: none; transition: background 0.2s; }
+        .sidebar nav a:hover, .sidebar nav a.active { background: rgba(255,255,255,0.15); color: #fff; }
+        .main { margin-left: 240px; padding: 24px; min-height: 100vh; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .header h2 { font-size: 24px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .stat-card .label { font-size: 14px; color: #666; margin-bottom: 8px; }
+        .stat-card .value { font-size: 28px; font-weight: 700; color: #4f46e5; }
+        .card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        .card h3 { margin-bottom: 16px; font-size: 16px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #eee; }
+        th { font-size: 13px; color: #666; font-weight: 600; text-transform: uppercase; }
+        .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+        .badge.green { background: #dcfce7; color: #166534; }
+        .badge.yellow { background: #fef9c3; color: #854d0e; }
+        .badge.red { background: #fee2e2; color: #991b1b; }
+        .badge.blue { background: #dbeafe; color: #1e40af; }
+        .btn { padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; transition: opacity 0.2s; }
+        .btn:hover { opacity: 0.85; }
+        .btn-primary { background: #4f46e5; color: #fff; }
+        .btn-success { background: #22c55e; color: #fff; }
+        .btn-danger { background: #ef4444; color: #fff; }
+        .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 2px solid #eee; }
+        .tab { padding: 10px 16px; cursor: pointer; font-size: 14px; color: #666; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+        .tab.active { color: #4f46e5; border-bottom-color: #4f46e5; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; margin-bottom: 6px; font-size: 14px; font-weight: 500; }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+        .form-group textarea { min-height: 100px; resize: vertical; }
+        .search-bar { display: flex; gap: 8px; margin-bottom: 16px; }
+        .search-bar input { flex: 1; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+        .empty { text-align: center; padding: 40px; color: #999; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h1>NexusACG 管理后台</h1>
+        <nav>
+            <a href="#" class="active" data-page="dashboard">仪表盘</a>
+            <a href="#" data-page="products">商品管理</a>
+            <a href="#" data-page="orders">订单管理</a>
+            <a href="#" data-page="posts">社区管理</a>
+            <a href="#" data-page="events">活动管理</a>
+            <a href="#" data-page="users">用户管理</a>
+            <a href="#" data-page="moderation">内容审核</a>
+        </nav>
+    </div>
+
+    <div class="main">
+        <!-- Dashboard -->
+        <div id="dashboard" class="page active">
+            <div class="header">
+                <h2>仪表盘</h2>
+                <span style="color: #666;">次元链 (NexusACG) MVP</span>
+            </div>
+            <div class="stats">
+                <div class="stat-card"><div class="label">用户总数</div><div class="value" id="stat-users">0</div></div>
+                <div class="stat-card"><div class="label">商品总数</div><div class="value" id="stat-products">0</div></div>
+                <div class="stat-card"><div class="label">订单总数</div><div class="value" id="stat-orders">0</div></div>
+                <div class="stat-card"><div class="label">待审核内容</div><div class="value" id="stat-pending">0</div></div>
+            </div>
+            <div class="card">
+                <h3>系统状态</h3>
+                <p id="system-status" style="color: #666;">正在连接后端 API...</p>
+            </div>
+        </div>
+
+        <!-- Products -->
+        <div id="products" class="page">
+            <div class="header">
+                <h2>商品管理</h2>
+            </div>
+            <div class="tabs">
+                <div class="tab active" data-zone="all">全部</div>
+                <div class="tab" data-zone="cosplay">Cosplay 专区</div>
+                <div class="tab" data-zone="peripheral">周边专区</div>
+            </div>
+            <div class="search-bar">
+                <input type="text" id="product-search" placeholder="搜索商品名称、作品、角色...">
+                <button class="btn btn-primary" onclick="searchProducts()">搜索</button>
+            </div>
+            <div class="card">
+                <table>
+                    <thead><tr><th>商品名称</th><th>专区</th><th>价格</th><th>库存</th><th>来源</th><th>状态</th></tr></thead>
+                    <tbody id="products-table"><tr><td colspan="6" class="empty">加载中...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Orders -->
+        <div id="orders" class="page">
+            <div class="header"><h2>订单管理</h2></div>
+            <div class="card">
+                <table>
+                    <thead><tr><th>订单号</th><th>金额</th><th>支付方式</th><th>支付状态</th><th>订单状态</th><th>创建时间</th></tr></thead>
+                    <tbody id="orders-table"><tr><td colspan="6" class="empty">加载中...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Posts -->
+        <div id="posts" class="page">
+            <div class="header"><h2>社区管理</h2></div>
+            <div class="card">
+                <table>
+                    <thead><tr><th>标题</th><th>作者</th><th>点赞</th><th>评论</th><th>状态</th><th>时间</th></tr></thead>
+                    <tbody id="posts-table"><tr><td colspan="6" class="empty">加载中...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Events -->
+        <div id="events" class="page">
+            <div class="header"><h2>活动管理</h2></div>
+            <div style="margin-bottom: 16px;">
+                <button class="btn btn-primary" onclick="showCreateEvent()">+ 新建活动</button>
+            </div>
+            <div class="card">
+                <table>
+                    <thead><tr><th>活动名称</th><th>时间</th><th>地点</th><th>状态</th><th>来源</th></tr></thead>
+                    <tbody id="events-table"><tr><td colspan="5" class="empty">加载中...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Users -->
+        <div id="users" class="page">
+            <div class="header"><h2>用户管理</h2></div>
+            <div class="card">
+                <table>
+                    <thead><tr><th>ID</th><th>昵称</th><th>手机号</th><th>角色</th><th>状态</th><th>注册时间</th></tr></thead>
+                    <tbody id="users-table"><tr><td colspan="6" class="empty">加载中...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Moderation -->
+        <div id="moderation" class="page">
+            <div class="header"><h2>内容审核</h2></div>
+            <div class="tabs">
+                <div class="tab active" data-type="posts">帖子审核</div>
+                <div class="tab" data-type="comments">评论审核</div>
+            </div>
+            <div class="card">
+                <div id="moderation-list" class="empty">暂无待审核内容</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.API_BASE || 'http://localhost:8080/api/v1';
+
+        // Navigation
+        document.querySelectorAll('.sidebar nav a').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const page = link.dataset.page;
+                document.querySelectorAll('.sidebar nav a').forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                document.getElementById(page).classList.add('active');
+                loadPage(page);
+            });
+        });
+
+        async function api(path) {
+            try {
+                const res = await fetch(`${API_BASE}${path}`);
+                return await res.json();
+            } catch (e) {
+                console.error('API Error:', e);
+                return null;
+            }
+        }
+
+        async function loadPage(page) {
+            switch(page) {
+                case 'dashboard': await loadDashboard(); break;
+                case 'products': await loadProducts(); break;
+                case 'orders': await loadOrders(); break;
+                case 'posts': await loadPosts(); break;
+                case 'events': await loadEvents(); break;
+                case 'users': await loadUsers(); break;
+                case 'moderation': await loadModeration(); break;
+            }
+        }
+
+        async function loadDashboard() {
+            // Check health
+            const health = await api('/health');
+            document.getElementById('system-status').textContent = health ? '后端 API 连接正常' : '后端 API 连接失败，请确保后端服务运行在 ' + API_BASE;
+
+            // Load counts
+            const [products, posts, events] = await Promise.all([
+                api('/products?page=1&page_size=1'),
+                api('/posts?page=1&page_size=1'),
+                api('/events?page=1&page_size=1')
+            ]);
+            document.getElementById('stat-products').textContent = products?.data?.total || '-';
+            document.getElementById('stat-users').textContent = '-';
+            document.getElementById('stat-orders').textContent = '-';
+            document.getElementById('stat-pending').textContent = '-';
+        }
+
+        async function loadProducts() {
+            const data = await api('/products?page=1&page_size=50');
+            const tbody = document.getElementById('products-table');
+            if (!data?.data?.items?.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">暂无商品数据</td></tr>'; return; }
+            tbody.innerHTML = data.data.items.map(p => `<tr>
+                <td>${p.name}</td>
+                <td><span class="badge ${p.zone === 'cosplay' ? 'blue' : 'green'}">${p.zone === 'cosplay' ? 'Cosplay' : '周边'}</span></td>
+                <td>¥${p.price.toFixed(2)}</td>
+                <td>${p.stock}</td>
+                <td><span class="badge yellow">${p.source_type === 'official' ? '官方' : p.source_type === 'agent' ? '代理' : '自制'}</span></td>
+                <td><span class="badge ${p.status === 'active' ? 'green' : 'red'}">${p.status}</span></td>
+            </tr>`).join('');
+        }
+
+        async function loadEvents() {
+            const data = await api('/events?page=1&page_size=50');
+            const tbody = document.getElementById('events-table');
+            if (!data?.data?.items?.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">暂无活动数据</td></tr>'; return; }
+            tbody.innerHTML = data.data.items.map(e => `<tr>
+                <td>${e.name}</td>
+                <td>${new Date(e.start_time).toLocaleDateString('zh-CN')}</td>
+                <td>${e.address}</td>
+                <td><span class="badge ${e.status === 'upcoming' ? 'blue' : e.status === 'ongoing' ? 'green' : 'yellow'}">${e.status}</span></td>
+                <td>${e.source === 'manual' ? '人工录入' : 'AI 聚合'}</td>
+            </tr>`).join('');
+        }
+
+        async function loadPosts() {
+            const data = await api('/posts?page=1&page_size=50');
+            const tbody = document.getElementById('posts-table');
+            if (!data?.data?.items?.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">暂无帖子数据</td></tr>'; return; }
+            tbody.innerHTML = data.data.items.map(p => `<tr>
+                <td>${p.title || p.content.substring(0, 30) + '...'}</td>
+                <td>${p.author?.nickname || '未知'}</td>
+                <td>${p.like_count}</td>
+                <td>${p.comment_count}</td>
+                <td><span class="badge ${p.status === 'approved' ? 'green' : p.status === 'pending_review' ? 'yellow' : 'red'}">${p.status}</span></td>
+                <td>${new Date(p.created_at).toLocaleDateString('zh-CN')}</td>
+            </tr>`).join('');
+        }
+
+        function searchProducts() {
+            const keyword = document.getElementById('product-search').value;
+            api(`/products?keyword=${encodeURIComponent(keyword)}&page=1&page_size=50`).then(data => {
+                const tbody = document.getElementById('products-table');
+                if (!data?.data?.items?.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">未找到匹配商品</td></tr>'; return; }
+                tbody.innerHTML = data.data.items.map(p => `<tr>
+                    <td>${p.name}</td>
+                    <td><span class="badge ${p.zone === 'cosplay' ? 'blue' : 'green'}">${p.zone === 'cosplay' ? 'Cosplay' : '周边'}</span></td>
+                    <td>¥${p.price.toFixed(2)}</td>
+                    <td>${p.stock}</td>
+                    <td><span class="badge yellow">${p.source_type === 'official' ? '官方' : p.source_type === 'agent' ? '代理' : '自制'}</span></td>
+                    <td><span class="badge ${p.status === 'active' ? 'green' : 'red'}">${p.status}</span></td>
+                </tr>`).join('');
+            });
+        }
+
+        async function loadOrders() {
+            document.getElementById('orders-table').innerHTML = '<tr><td colspan="6" class="empty">需要登录后查看订单</td></tr>';
+        }
+        async function loadUsers() {
+            document.getElementById('users-table').innerHTML = '<tr><td colspan="6" class="empty">需要登录后查看用户</td></tr>';
+        }
+        async function loadModeration() {
+            document.getElementById('moderation-list').innerHTML = '<div class="empty">暂无待审核内容</div>';
+        }
+        function showCreateEvent() { alert('新建活动功能需要后端创建接口'); }
+
+        // Load dashboard on startup
+        loadDashboard();
+    </script>
+</body>
+</html>

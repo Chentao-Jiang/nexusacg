@@ -1,0 +1,12 @@
+[phases.setup]
+nixPkgs = ["go_1_23"]
+
+[phases.install]
+cmds = ["cd backend && go mod download"]
+workDir = "."
+
+[phases.build]
+cmds = ["cd backend && CGO_ENABLED=0 go build -o nexusacg ./cmd/server"]
+
+[start]
+cmd = "./backend/nexusacg"
