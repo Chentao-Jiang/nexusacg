@@ -57,7 +57,7 @@ func Load() *Config {
 	cfg := &Config{
 		Env:                  getEnv("ENV", "development"),
 		Port:                 getEnv("PORT", "8080"),
-		BaseURL:              getEnv("BASE_URL", "http://localhost:8080"),
+		BaseURL:              getRailwayURL(),
 		DBHost:               getEnv("DB_HOST", "localhost"),
 		DBPort:               getEnv("DB_PORT", "5432"),
 		DBName:               getEnv("DB_NAME", "nexusacg"),
@@ -154,4 +154,16 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// getRailwayURL returns the public URL from Railway env vars, falling back to localhost.
+// Railway injects RAILWAY_PUBLIC_DOMAIN automatically; we prepend https:// for the full URL.
+func getRailwayURL() string {
+	if v := os.Getenv("BASE_URL"); v != "" {
+		return v
+	}
+	if domain := os.Getenv("RAILWAY_PUBLIC_DOMAIN"); domain != "" {
+		return "https://" + domain
+	}
+	return "http://localhost:8080"
 }
