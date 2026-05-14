@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/big"
 	"net/http"
 	"net/url"
 	"sort"
@@ -28,6 +29,7 @@ type SMSService struct {
 	mu        sync.Mutex
 	codes     map[string]*codeEntry
 	sendTimes map[string][]time.Time
+	failCount map[string]*failEntry
 }
 
 type codeEntry struct {
@@ -36,11 +38,17 @@ type codeEntry struct {
 	sendTime time.Time
 }
 
+type failEntry struct {
+	count int
+	since time.Time
+}
+
 func NewSMSService(cfg *config.Config) *SMSService {
 	s := &SMSService{
 		cfg:       cfg,
 		codes:     make(map[string]*codeEntry),
 		sendTimes: make(map[string][]time.Time),
+		failCount: make(map[string]*failEntry),
 	}
 	go s.cleanupLoop()
 	return s
@@ -75,6 +83,11 @@ func (s *SMSService) cleanup() {
 			delete(s.sendTimes, phone)
 		} else {
 			s.sendTimes[phone] = kept
+		}
+	}
+	for phone, entry := range s.failCount {
+		if now.Sub(entry.since) > 5*time.Minute {
+			delete(s.failCount, phone)
 		}
 	}
 }
@@ -114,7 +127,7 @@ func (s *SMSService) GenerateAndStore(phone string) (string, error) {
 }
 
 // Verify checks if the provided code matches the stored code for the phone number.
-// Consumes the code on success.
+// Consumes the code on success. Brute-force protected: max 5 attempts per code.
 func (s *SMSService) Verify(phone, code string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -126,7 +139,34 @@ func (s *SMSService) Verify(phone, code string) bool {
 		delete(s.codes, phone)
 		return false
 	}
-	return hmac.Equal([]byte(entry.code), []byte(code))
+
+	// Brute-force protection: max 5 failed attempts per code
+	fe := s.failCount[phone]
+	if fe == nil {
+		fe = &failEntry{since: time.Now()}
+		s.failCount[phone] = fe
+	}
+	if time.Since(fe.since) > 5*time.Minute {
+		fe.count = 0
+		fe.since = time.Now()
+	}
+	if fe.count >= 5 {
+		delete(s.codes, phone)
+		return false
+	}
+
+	if !hmac.Equal([]byte(entry.code), []byte(code)) {
+		fe.count++
+		if fe.count >= 5 {
+			delete(s.codes, phone)
+		}
+		return false
+	}
+
+	// Success: clear fail count and consume code
+	delete(s.failCount, phone)
+	delete(s.codes, phone)
+	return true
 }
 
 // SendVerificationCode generates a code and sends it.
@@ -152,8 +192,10 @@ func (s *SMSService) SendVerificationCode(phone string) error {
 	// No traditional SMS configured, try SMS Auth API
 	if err := s.sendSmsVerifyCode(phone, code); err != nil {
 		fmt.Printf("[SMS Auth API ERROR] %v\n", err)
-		// Dev mode: log the code
-		fmt.Printf("[SMS DEV MODE] Verification code for %s: %s\n", phone, code)
+		// Dev mode: log the code only in development
+		if s.cfg.Env == "development" {
+			fmt.Printf("[SMS DEV MODE] Verification code for %s: %s\n", phone, code)
+		}
 		return nil
 	}
 	return nil
@@ -299,19 +341,16 @@ func randInt(min, max int) int {
 	if min > max {
 		min, max = max, min
 	}
-	n := max - min + 1
+	n := int64(max - min + 1)
 	if n <= 0 {
 		n = math.MaxInt32
 	}
-	var buf [4]byte
-	if _, err := rand.Read(buf[:]); err != nil {
+	// Use rejection sampling via crypto/rand for uniform distribution
+	randVal, err := rand.Int(rand.Reader, big.NewInt(n))
+	if err != nil {
 		return min
 	}
-	val := int(uint32(buf[0])<<24 | uint32(buf[1])<<16 | uint32(buf[2])<<8 | uint32(buf[3]))
-	if val < 0 {
-		val = -val
-	}
-	return min + (val % n)
+	return min + int(randVal.Int64())
 }
 
 func uuidNonce() string {

@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -39,22 +40,42 @@ func JWTAuth(cfg *config.Config) gin.HandlerFunc {
 	}
 }
 
+func RequireAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		role, exists := c.Get("role")
+		if !exists || role != "admin" {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"code": 403, "message": "admin access required"})
+			return
+		}
+		c.Next()
+	}
+}
+
 func CORS() gin.HandlerFunc {
+	// Configurable allowed origins via CORS_ORIGINS env var
+	originsStr := os.Getenv("CORS_ORIGINS")
+	allowedOrigins := map[string]bool{
+		"http://localhost:8080": true,
+		"http://localhost:3000": true,
+		"http://127.0.0.1:8080": true,
+		"http://127.0.0.1:3000": true,
+	}
+	if originsStr != "" {
+		for _, o := range strings.Split(originsStr, ",") {
+			o = strings.TrimSpace(o)
+			if o != "" {
+				allowedOrigins[o] = true
+			}
+		}
+	}
+
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
 		if origin == "" {
 			c.Next()
 			return
 		}
-		// Allowed origins for CORS. In production, add your actual domain.
-		allowedOrigins := map[string]bool{
-			"http://localhost:8080": true,
-			"http://localhost:3000": true,
-			"http://127.0.0.1:8080": true,
-			"http://127.0.0.1:3000": true,
-		}
 		if !allowedOrigins[origin] {
-			// Reject cross-origin requests from untrusted origins
 			c.Header("Access-Control-Allow-Origin", "http://localhost:8080")
 		} else {
 			c.Header("Access-Control-Allow-Origin", origin)
@@ -76,10 +97,10 @@ func SecurityHeaders() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("X-Content-Type-Options", "nosniff")
 		c.Header("X-Frame-Options", "DENY")
-		c.Header("X-XSS-Protection", "1; mode=block")
 		c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		c.Header("Content-Security-Policy", "default-src 'self'")
+		c.Header("Cache-Control", "no-store, no-cache, must-revalidate")
 		c.Next()
 	}
 }

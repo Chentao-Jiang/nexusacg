@@ -12,11 +12,13 @@ type AdminHandler struct {
 	admin *service.AdminService
 }
 
-func NewAdminHandler(r *gin.RouterGroup, admin *service.AdminService, adminMW gin.HandlerFunc) {
+func NewAdminHandler(r *gin.RouterGroup, admin *service.AdminService, middlewares ...gin.HandlerFunc) {
 	h := &AdminHandler{admin: admin}
 
 	adminGroup := r.Group("/admin")
-	adminGroup.Use(adminMW)
+	for _, mw := range middlewares {
+		adminGroup.Use(mw)
+	}
 
 	// Product audit
 	adminGroup.GET("/products/pending", h.PendingProducts)

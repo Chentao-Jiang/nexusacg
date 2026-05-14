@@ -38,7 +38,7 @@ func main() {
 	eventSvc := service.NewEventService(db)
 	orderSvc := service.NewOrderService(db)
 	adminSvc := service.NewAdminService(db)
-	moderationSvc := service.NewContentModerationService(db, cfg.ModerationAPIKey, cfg.ModerationAPISecret)
+	moderationSvc := service.NewContentModerationService(cfg.DeepSeekAPIKey, cfg.QwenAPIKey)
 
 	// Storage (deferred to after router init)
 	store := storage.NewLocalStorage("./uploads", cfg.BaseURL)
@@ -116,14 +116,21 @@ func main() {
 
 	// Health check
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "nexusacg"})
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
 	// Serve uploaded files
 	r.Static("/uploads", "./uploads")
 
-	// Swagger API documentation
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	// robots.txt to discourage search engine indexing
+	r.GET("/robots.txt", func(c *gin.Context) {
+		c.String(http.StatusOK, "User-agent: *\nDisallow: /uploads/\n")
+	})
+
+	// Swagger API documentation (disabled in production)
+	if cfg.Env == "development" {
+		r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	}
 
 	// API v1
 	v1 := r.Group("/api/v1")
@@ -132,9 +139,9 @@ func main() {
 	handler.NewPostHandler(v1, postSvc, authMW, moderationSvc)
 	handler.NewEventHandler(v1, eventSvc, authMW)
 	handler.NewOrderHandler(v1, orderSvc, profitShareSvc, authMW)
-	handler.NewPaymentHandler(v1, paymentSvc, authMW, cfg.BaseURL+"/api/v1/payments/alipay/callback")
-	handler.NewUploadHandler(v1, store, authMW)
-	handler.NewAdminHandler(v1, adminSvc, authMW)
+	handler.NewPaymentHandler(v1, paymentSvc, authMW, cfg.BaseURL+"/api/v1/payments/alipay/callback", cfg.Env)
+	handler.NewUploadHandler(v1, store, authMW, middleware.RequireAdmin())
+	handler.NewAdminHandler(v1, adminSvc, authMW, middleware.RequireAdmin())
 
 	// Order timeout cron: cancel pending orders after configured timeout
 	if cfg.OrderTimeoutMinutes > 0 {
@@ -167,9 +174,21 @@ func main() {
 
 	// Graceful shutdown
 	log.Printf("server starting on :%s", cfg.Port)
+
+	// Body size limit for JSON endpoints (1MB)
+	bodyLimitMW := func(c *gin.Context) {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 1<<20)
+		c.Next()
+	}
+	r.Use(bodyLimitMW)
+
 	srv := &http.Server{
-		Addr:    ":" + cfg.Port,
-		Handler: r,
+		Addr:              ":" + cfg.Port,
+		Handler:           r,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	go func() {

@@ -34,6 +34,10 @@ func NotFound(c *gin.Context, msg string) {
 	Error(c, http.StatusNotFound, msg)
 }
 
+func Forbidden(c *gin.Context, msg string) {
+	Error(c, http.StatusForbidden, msg)
+}
+
 // InternalError logs the full error but returns a generic message to the client
 // to prevent leaking internal implementation details.
 func InternalError(c *gin.Context, msg string) {

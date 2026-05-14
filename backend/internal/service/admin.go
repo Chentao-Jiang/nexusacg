@@ -190,7 +190,33 @@ func (s *AdminService) GetDashboardStats(ctx context.Context) (*DashboardStats, 
 
 // --- Admin User Management ---
 
-func (s *AdminService) ListUsers(ctx context.Context, page, pageSize int) ([]model.User, int64, error) {
+// UserResponse is a safe-to-serialize user struct for API responses.
+type UserResponse struct {
+	ID       uuid.UUID `json:"id"`
+	Nickname string    `json:"nickname"`
+	Role     string    `json:"role"`
+	Status   string    `json:"status"`
+	Phone    string    `json:"phone,omitempty"`
+	Email    string    `json:"email,omitempty"`
+}
+
+func userToResponse(u model.User) UserResponse {
+	r := UserResponse{
+		ID:       u.ID,
+		Nickname: u.Nickname,
+		Role:     u.Role,
+		Status:   u.Status,
+	}
+	if u.Phone != nil {
+		r.Phone = *u.Phone
+	}
+	if u.Email != nil {
+		r.Email = *u.Email
+	}
+	return r
+}
+
+func (s *AdminService) ListUsers(ctx context.Context, page, pageSize int) ([]UserResponse, int64, error) {
 	query := s.db.Model(&model.User{})
 	var total int64
 	query.Count(&total)
@@ -202,16 +228,23 @@ func (s *AdminService) ListUsers(ctx context.Context, page, pageSize int) ([]mod
 	if err := query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&users).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to list users: %w", err)
 	}
-	return users, total, nil
+	responses := make([]UserResponse, len(users))
+	for i, u := range users {
+		responses[i] = userToResponse(u)
+	}
+	return responses, total, nil
 }
 
 func (s *AdminService) BanUser(ctx context.Context, userID uuid.UUID) error {
-	result := s.db.Model(&model.User{}).Where("id = ?", userID).Update("status", "banned")
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return fmt.Errorf("user not found")
-	}
-	return nil
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(&model.User{}).Where("id = ?", userID).Update("status", "banned")
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return fmt.Errorf("user not found")
+		}
+		// Revoke all refresh tokens for the banned user
+		return tx.Where("user_id = ?", userID).Delete(&model.RefreshToken{}).Error
+	})
 }

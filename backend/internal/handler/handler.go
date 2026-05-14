@@ -764,9 +764,17 @@ func (h *OrderHandler) List(c *gin.Context) {
 // @Security BearerAuth
 // @Router /orders/{order_no} [get]
 func (h *OrderHandler) Detail(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	uid, _ := uuid.Parse(userID.(string))
+
 	order, err := h.svc.GetByOrderNo(c.Request.Context(), c.Param("order_no"))
 	if err != nil {
 		NotFound(c, err.Error())
+		return
+	}
+
+	if order.UserID != uid {
+		Forbidden(c, "access denied")
 		return
 	}
 
@@ -806,6 +814,20 @@ func (h *OrderHandler) Cancel(c *gin.Context) {
 // @Security BearerAuth
 // @Router /orders/{order_no}/refund [post]
 func (h *OrderHandler) Refund(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	uid, _ := uuid.Parse(userID.(string))
+
+	order, err := h.svc.GetByOrderNo(c.Request.Context(), c.Param("order_no"))
+	if err != nil {
+		NotFound(c, err.Error())
+		return
+	}
+
+	if order.UserID != uid {
+		Forbidden(c, "access denied")
+		return
+	}
+
 	if err := h.svc.Refund(c.Request.Context(), c.Param("order_no")); err != nil {
 		BadRequest(c, err.Error())
 		return
@@ -833,6 +855,9 @@ type PayRequest struct {
 // @Security BearerAuth
 // @Router /orders/{order_no}/pay [post]
 func (h *OrderHandler) Pay(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	uid, _ := uuid.Parse(userID.(string))
+
 	orderNo := c.Param("order_no")
 	if orderNo == "" {
 		BadRequest(c, "missing order_no")
@@ -849,6 +874,12 @@ func (h *OrderHandler) Pay(c *gin.Context) {
 	order, err := h.svc.GetByOrderNo(c.Request.Context(), orderNo)
 	if err != nil {
 		NotFound(c, err.Error())
+		return
+	}
+
+	// Verify the authenticated user owns the order
+	if order.UserID != uid {
+		Forbidden(c, "access denied")
 		return
 	}
 

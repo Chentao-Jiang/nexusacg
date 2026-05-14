@@ -28,14 +28,21 @@ func NewAuthHandler(r *gin.RouterGroup, svc *service.AuthService, smsSvc *servic
 	auth.POST("/refresh", h.Refresh)
 	auth.POST("/sms/send", h.SMSSendCode)
 	auth.POST("/sms/login", h.SMSLogin)
-	// WeChat OAuth routes (no rate limit — they are GET redirect/callback)
+	// WeChat OAuth routes — moderate rate limit to prevent abuse
 	wechat := auth.Group("/wechat")
+	wechat.Use(middleware.RateLimit())
 	wechat.GET("/authorize", h.WeChatAuthorize)
 	wechat.GET("/callback", h.WeChatCallback)
-	// QQ OAuth routes (no rate limit — they are GET redirect/callback)
+	// QQ OAuth routes — moderate rate limit to prevent abuse
 	qq := auth.Group("/qq")
+	qq.Use(middleware.RateLimit())
 	qq.GET("/authorize", h.QQAuthorize)
 	qq.GET("/callback", h.QQCallback)
+
+	// Logout requires JWT auth
+	logout := r.Group("/auth/logout")
+	logout.Use(middleware.JWTAuth(cfg))
+	logout.POST("", h.Logout)
 }
 
 type RegisterRequest struct {
@@ -58,7 +65,7 @@ type RegisterRequest struct {
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		BadRequest(c, "invalid request: "+err.Error())
+		BadRequest(c, "invalid request")
 		return
 	}
 
@@ -69,7 +76,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		Nickname: req.Nickname,
 	})
 	if err != nil {
-		BadRequest(c, err.Error())
+		BadRequest(c, safeErrorMessage(err))
 		return
 	}
 
@@ -142,6 +149,35 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	}
 
 	Success(c, tokens)
+}
+
+type LogoutRequest struct {
+	RefreshToken string `json:"refresh_token" binding:"required"`
+}
+
+// Logout godoc
+// @Summary Logout
+// @Description Revoke the given refresh token (requires auth)
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body LogoutRequest true "Refresh token to revoke"
+// @Success 200 {object} Response
+// @Security BearerAuth
+// @Router /auth/logout [post]
+func (h *AuthHandler) Logout(c *gin.Context) {
+	var req LogoutRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		BadRequest(c, "invalid request")
+		return
+	}
+
+	if err := h.svc.Logout(c.Request.Context(), req.RefreshToken); err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
+
+	Success(c, gin.H{"status": "logged_out"})
 }
 
 type SMSSendCodeRequest struct {
@@ -273,7 +309,10 @@ func (h *AuthHandler) WeChatCallback(c *gin.Context) {
 	}
 
 	state := c.Query("state")
-	_ = state // available for client-side validation
+	if state == "" {
+		BadRequest(c, "missing state parameter")
+		return
+	}
 
 	user, tokens, err := h.svc.WeChatOAuthLogin(c.Request.Context(), h.wechatOauth, code)
 	if err != nil {
@@ -287,6 +326,20 @@ func (h *AuthHandler) WeChatCallback(c *gin.Context) {
 
 	_ = user // user is available; tokens are the main response
 	Success(c, tokens)
+}
+
+// safeErrorMessage returns a user-safe error message, stripping internal details.
+func safeErrorMessage(err error) string {
+	msg := err.Error()
+	for _, prefix := range []string{
+		"phone already", "email already", "invalid credentials",
+		"user account is not active", "请等待", "今日发送", "验证码",
+	} {
+		if strings.Contains(msg, prefix) {
+			return msg
+		}
+	}
+	return "操作失败，请重试"
 }
 
 // QQAuthorize godoc
@@ -334,7 +387,10 @@ func (h *AuthHandler) QQCallback(c *gin.Context) {
 	}
 
 	state := c.Query("state")
-	_ = state // available for client-side validation
+	if state == "" {
+		BadRequest(c, "missing state parameter")
+		return
+	}
 
 	redirectURI := h.cfg.BaseURL + "/api/v1/auth/qq/callback"
 	user, tokens, err := h.svc.QQOAuthLogin(c.Request.Context(), h.qqOauth, code, redirectURI)

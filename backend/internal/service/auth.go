@@ -209,17 +209,29 @@ func (s *AuthService) generateTokens(user *model.User) (*TokenPair, error) {
 }
 
 func (s *AuthService) RefreshToken(ctx context.Context, tokenStr string) (*TokenPair, error) {
-	var rt model.RefreshToken
-	if err := s.db.Where("token = ? AND expires_at > ?", tokenStr, time.Now()).First(&rt).Error; err != nil {
-		return nil, fmt.Errorf("invalid refresh token")
-	}
-
 	var user model.User
-	if err := s.db.Where("id = ?", rt.UserID).First(&user).Error; err != nil {
-		return nil, fmt.Errorf("user not found")
-	}
-	if user.Status != "active" {
-		return nil, fmt.Errorf("user account is not active")
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var rt model.RefreshToken
+		if err := tx.Set("gorm:query_option", "FOR UPDATE").Where("token = ? AND expires_at > ?", tokenStr, time.Now()).First(&rt).Error; err != nil {
+			return fmt.Errorf("invalid refresh token")
+		}
+
+		if err := tx.Where("id = ?", rt.UserID).First(&user).Error; err != nil {
+			return fmt.Errorf("user not found")
+		}
+		if user.Status != "active" {
+			return fmt.Errorf("user account is not active")
+		}
+
+		// Delete old refresh token within the same transaction
+		if err := tx.Delete(&rt).Error; err != nil {
+			return fmt.Errorf("delete refresh token: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	tokens, err := s.generateTokens(&user)
@@ -227,10 +239,17 @@ func (s *AuthService) RefreshToken(ctx context.Context, tokenStr string) (*Token
 		return nil, err
 	}
 
-	// Delete old refresh token only after new tokens are generated
-	s.db.Delete(&rt)
-
 	return tokens, nil
+}
+
+// Logout revokes a specific refresh token.
+func (s *AuthService) Logout(ctx context.Context, tokenStr string) error {
+	return s.db.Where("token = ?", tokenStr).Delete(&model.RefreshToken{}).Error
+}
+
+// RevokeAllUserTokens revokes all refresh tokens for a user (used on ban/password change).
+func (s *AuthService) RevokeAllUserTokens(userID uuid.UUID) error {
+	return s.db.Where("user_id = ?", userID).Delete(&model.RefreshToken{}).Error
 }
 
 // QQOAuthLogin exchanges a QQ authorization code for tokens,

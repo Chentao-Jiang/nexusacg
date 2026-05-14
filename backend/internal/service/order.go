@@ -42,7 +42,7 @@ func (s *OrderService) Create(ctx context.Context, input CreateOrderInput) (*mod
 		}
 	}
 
-	orderNo := fmt.Sprintf("NAC%s%d", time.Now().Format("20060102150405"), uuid.New().ID()&0xFFFF)
+	orderNo := fmt.Sprintf("NAC%s%s", time.Now().Format("20060102150405"), uuid.New().String()[:8])
 
 	var totalAmount float64
 	var orderItems []model.OrderItem

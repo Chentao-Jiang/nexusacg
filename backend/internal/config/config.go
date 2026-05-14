@@ -37,8 +37,8 @@ type Config struct {
 	QQOAuthAppID  string // AppID from connect.qq.com
 	QQOAuthAppKey string // AppKey from connect.qq.com (not AppSecret)
 	// AI Content Moderation
-	ModerationAPIKey    string        // Alibaba Cloud Content Security API key
-	ModerationAPISecret string        // Alibaba Cloud Content Security API secret
+	DeepSeekAPIKey  string // DeepSeek API key for text moderation (V4 Flash)
+	QwenAPIKey      string // Qwen API key for image/video moderation (Qwen3-VL-flash, DashScope)
 	// SMS (Aliyun)
 	SMSAccessKeyID     string // Aliyun AccessKey ID for SMS
 	SMSAccessKeySecret string // Aliyun AccessKey Secret for SMS
@@ -81,8 +81,8 @@ func Load() *Config {
 		AlipaySandbox:        getEnv("ALIPAY_SANDBOX", "false") == "true",
 		QQOAuthAppID:         getEnv("QQ_OAUTH_APP_ID", ""),
 		QQOAuthAppKey:        getEnv("QQ_OAUTH_APP_KEY", ""),
-		ModerationAPIKey:     getEnv("MODERATION_API_KEY", ""),
-		ModerationAPISecret:  getEnv("MODERATION_API_SECRET", ""),
+		DeepSeekAPIKey:       getEnv("DEEPSEEK_API_KEY", ""),
+		QwenAPIKey:           getEnv("QWEN_API_KEY", ""),
 		SMSAccessKeyID:       getEnv("SMS_ACCESS_KEY_ID", ""),
 		SMSAccessKeySecret:   getEnv("SMS_ACCESS_KEY_SECRET", ""),
 		SMSSignName:          getEnv("SMS_SIGN_NAME", ""),

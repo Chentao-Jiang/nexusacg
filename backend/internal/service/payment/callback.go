@@ -279,9 +279,12 @@ func (s *CallbackService) HandleAlipayCallback(ctx context.Context, params map[s
 		return "fail", fmt.Errorf("alipay not configured")
 	}
 
-	// 1. Verify signature
+	// 1. Verify signature — reject immediately if invalid
 	sign := params["sign"]
 	sigValid := s.alipayVerifier.Verify(params, sign)
+	if !sigValid {
+		return "fail", fmt.Errorf("alipay callback signature invalid")
+	}
 
 	// 2. Check trade_status
 	tradeStatus := params["trade_status"]

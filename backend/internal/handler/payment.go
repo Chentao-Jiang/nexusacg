@@ -8,28 +8,33 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/planforever/nexusacg/internal/middleware"
 	"github.com/planforever/nexusacg/internal/service/payment"
 )
 
 type PaymentHandler struct {
-	svc         *payment.CallbackService
+	svc             *payment.CallbackService
 	alipayNotifyURL string
 }
 
 // NewPaymentHandler registers payment routes.
 // Callbacks come from WeChat/Alipay servers (no auth), prepay requires auth.
-func NewPaymentHandler(r *gin.RouterGroup, svc *payment.CallbackService, authMW gin.HandlerFunc, alipayNotifyURL string) {
+func NewPaymentHandler(r *gin.RouterGroup, svc *payment.CallbackService, authMW gin.HandlerFunc, alipayNotifyURL, env string) {
 	h := &PaymentHandler{svc: svc, alipayNotifyURL: alipayNotifyURL}
 
 	// Payment callback endpoints — NO auth middleware
 	pay := r.Group("/payments")
 	pay.POST("/wechat/callback", h.WechatCallback)
 	pay.POST("/alipay/callback", h.AlipayCallback)
-	pay.GET("/logs", h.PaymentLogs)
 
-	// Prepay endpoint — requires auth
+	// Prepay + logs — require auth; logs require admin
 	pay.POST("/prepay", authMW, h.Prepay)
-	pay.GET("/alipay/verify", h.AlipayVerify)
+	pay.GET("/logs", authMW, middleware.RequireAdmin(), h.PaymentLogs)
+
+	// Alipay verify — only in development
+	if env == "development" {
+		pay.GET("/alipay/verify", h.AlipayVerify)
+	}
 }
 
 // PrepayRequest is the request body for creating a payment order.
@@ -54,7 +59,7 @@ type PrepayRequest struct {
 func (h *PaymentHandler) Prepay(c *gin.Context) {
 	var req PrepayRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		BadRequest(c, "invalid request: "+err.Error())
+		BadRequest(c, "invalid request")
 		return
 	}
 

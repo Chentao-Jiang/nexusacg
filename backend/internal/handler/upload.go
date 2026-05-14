@@ -1,26 +1,43 @@
 package handler
 
 import (
+	"fmt"
+	"mime/multipart"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/planforever/nexusacg/internal/storage"
 )
 
+var allowedImageMIME = map[string]bool{
+	"image/jpeg": true,
+	"image/png":  true,
+	"image/gif":  true,
+	"image/webp": true,
+}
+
+var allowedVideoMIME = map[string]bool{
+	"video/mp4":       true,
+	"video/webm":      true,
+	"video/quicktime": true,
+}
+
 type UploadHandler struct {
 	store storage.Storage
 }
 
-func NewUploadHandler(r *gin.RouterGroup, store storage.Storage, authMW gin.HandlerFunc) {
+func NewUploadHandler(r *gin.RouterGroup, store storage.Storage, authMW, adminMW gin.HandlerFunc) {
 	h := &UploadHandler{store: store}
 
-	public := r.Group("/upload")
-	public.POST("", h.Upload)
-	public.POST("/video", h.UploadVideo)
+	upload := r.Group("/upload")
+	upload.Use(authMW)
+	upload.POST("", h.Upload)
+	upload.POST("/video", h.UploadVideo)
 
-	private := r.Group("/upload")
-	private.Use(authMW)
-	private.DELETE("/:filename", h.Delete)
+	// Delete requires admin to prevent arbitrary file deletion
+	admin := upload.Group("")
+	admin.Use(adminMW)
+	admin.DELETE("/:filename", h.Delete)
 }
 
 // UploadFile godoc
@@ -36,17 +53,22 @@ func NewUploadHandler(r *gin.RouterGroup, store storage.Storage, authMW gin.Hand
 func (h *UploadHandler) Upload(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing file field"})
+		BadRequest(c, "missing file field")
+		return
+	}
+
+	if err := validateFileMIME(file, allowedImageMIME); err != nil {
+		BadRequest(c, err.Error())
 		return
 	}
 
 	url, err := h.store.Upload(file)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		BadRequest(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"url": url})
+	Success(c, gin.H{"url": url})
 }
 
 // UploadVideo godoc
@@ -62,17 +84,22 @@ func (h *UploadHandler) Upload(c *gin.Context) {
 func (h *UploadHandler) UploadVideo(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing file field"})
+		BadRequest(c, "missing file field")
+		return
+	}
+
+	if err := validateFileMIME(file, allowedVideoMIME); err != nil {
+		BadRequest(c, err.Error())
 		return
 	}
 
 	url, err := h.store.Upload(file)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		BadRequest(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"url": url})
+	Success(c, gin.H{"url": url})
 }
 
 // DeleteFile godoc
@@ -89,15 +116,35 @@ func (h *UploadHandler) UploadVideo(c *gin.Context) {
 func (h *UploadHandler) Delete(c *gin.Context) {
 	filename := c.Param("filename")
 	if filename == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing filename"})
+		BadRequest(c, "missing filename")
 		return
 	}
 
 	url := "/uploads/" + filename
 	if err := h.store.Delete(url); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "file not found"})
+		NotFound(c, "file not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"deleted": true})
+	Success(c, gin.H{"deleted": true})
+}
+
+func validateFileMIME(file *multipart.FileHeader, allowed map[string]bool) error {
+	src, err := file.Open()
+	if err != nil {
+		return fmt.Errorf("open file: %w", err)
+	}
+	defer src.Close()
+
+	buf := make([]byte, 512)
+	n, err := src.Read(buf)
+	if err != nil {
+		return fmt.Errorf("read file header: %w", err)
+	}
+
+	detected := http.DetectContentType(buf[:n])
+	if !allowed[detected] {
+		return fmt.Errorf("invalid file content type: %s", detected)
+	}
+	return nil
 }

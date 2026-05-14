@@ -11,8 +11,14 @@ import (
 )
 
 func Connect(cfg *config.Config) *gorm.DB {
+	// Only log SQL queries in development; production uses Warn to avoid leaking data
+	logLevel := logger.Warn
+	if cfg.Env == "development" {
+		logLevel = logger.Info
+	}
+
 	db, err := gorm.Open(postgres.Open(cfg.DSN()), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.Default.LogMode(logLevel),
 	})
 	if err != nil {
 		log.Fatalf("failed to connect database: %v", err)

@@ -42,7 +42,7 @@ func (s *PostService) Create(ctx context.Context, input CreatePostInput) (*model
 		Title:   input.Title,
 		Content: input.Content,
 		Images:  input.Images,
-		Status:  "pending_review",
+		Status:  "approved",
 	}
 	if input.VideoURL != nil {
 		post.VideoURL = input.VideoURL
@@ -159,7 +159,7 @@ func (s *PostService) CreateComment(ctx context.Context, input CommentInput) (*m
 		UserID:   input.UserID,
 		Content:  input.Content,
 		ParentID: input.ParentID,
-		Status:   "pending_review",
+		Status:   "approved",
 	}
 	if err := s.db.Create(&comment).Error; err != nil {
 		return nil, fmt.Errorf("failed to create comment: %w", err)

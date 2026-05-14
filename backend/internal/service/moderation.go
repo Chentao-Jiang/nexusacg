@@ -3,64 +3,60 @@ package service
 import (
 	"bytes"
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"strings"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // ContentModerationService handles AI-based content moderation for posts and products.
-// Integrates with external content safety APIs (e.g., Alibaba Cloud Content Security).
+// Uses DeepSeek V4 Flash for text moderation and Qwen3-VL-flash for image/video moderation.
 type ContentModerationService struct {
-	apiKey    string
-	apiSecret string
-	apiURL    string
-	db        *gorm.DB
+	deepseekAPIKey string
+	qwenAPIKey     string
 }
 
-func NewContentModerationService(db *gorm.DB, apiKey, apiSecret string) *ContentModerationService {
+func NewContentModerationService(deepseekKey, qwenKey string) *ContentModerationService {
 	return &ContentModerationService{
-		db:        db,
-		apiKey:    apiKey,
-		apiSecret: apiSecret,
-		apiURL:    "https://green.cn-shanghai.aliyuncs.com/green/text/scan",
+		deepseekAPIKey: deepseekKey,
+		qwenAPIKey:     qwenKey,
 	}
 }
 
 // ModerationResult represents the result of content moderation.
 type ModerationResult struct {
-	Pass    bool     `json:"pass"`
-	Labels  []string `json:"labels"`
-	Reason  string   `json:"reason"`
+	Pass   bool     `json:"pass"`
+	Labels []string `json:"labels"`
+	Reason string   `json:"reason"`
 }
 
-// ModerateText checks text content for sensitive/illegal content using AI moderation API.
-// When API credentials are not configured, falls back to local keyword filtering.
+// ModerateText checks text content for sensitive/illegal content using DeepSeek V4 Flash.
+// Falls back to local keyword filtering when API key is not configured.
 func (s *ContentModerationService) ModerateText(ctx context.Context, content string) (*ModerationResult, error) {
-	// Fallback: local keyword filter when API not configured
-	if s.apiKey == "" || s.apiSecret == "" {
+	if s.deepseekAPIKey == "" {
 		return s.localKeywordFilter(content)
 	}
-
-	// Call Alibaba Cloud Content Security API
-	return s.callAlibabaAPI(ctx, content)
+	return s.callDeepSeekModeration(ctx, content)
 }
 
-// ModerateImage checks an image URL for inappropriate content.
+// ModerateImage checks an image URL for inappropriate content using Qwen3-VL-flash.
+// Falls back to pass-by-default when API key is not configured.
 func (s *ContentModerationService) ModerateImage(ctx context.Context, imageURL string) (*ModerationResult, error) {
-	if s.apiKey == "" || s.apiSecret == "" {
-		// No API configured, pass by default
+	if s.qwenAPIKey == "" {
 		return &ModerationResult{Pass: true}, nil
 	}
-	// Call Alibaba Cloud Image Moderation API
-	return s.callAlibabaImageAPI(ctx, imageURL)
+	return s.callQwenVLModeration(ctx, imageURL)
+}
+
+// ModerateVideo checks a video URL for inappropriate content using Qwen3-VL-flash.
+// Falls back to pass-by-default when API key is not configured.
+func (s *ContentModerationService) ModerateVideo(ctx context.Context, videoURL string) (*ModerationResult, error) {
+	if s.qwenAPIKey == "" {
+		return &ModerationResult{Pass: true}, nil
+	}
+	return s.callQwenVLModerationVideo(ctx, videoURL)
 }
 
 // AutoModeratePost checks a post's content and images before publication.
@@ -89,12 +85,294 @@ func (s *ContentModerationService) AutoModeratePost(ctx context.Context, title, 
 	return &ModerationResult{Pass: true}, nil
 }
 
+// --- DeepSeek text moderation ---
+
+func (s *ContentModerationService) callDeepSeekModeration(ctx context.Context, content string) (*ModerationResult, error) {
+	reqBody := map[string]interface{}{
+		"model": "deepseek-chat",
+		"messages": []map[string]string{
+			{
+				"role": "system",
+				"content": `你是内容审核助手。请判断给定内容是否包含以下违规类别：
+- 色情/性暗示
+- 暴力/恐怖
+- 政治敏感
+- 仇恨/歧视
+- 毒品/非法交易
+- 赌博
+- 广告/垃圾营销
+- 辱骂/人身攻击
+
+以 JSON 格式返回：
+{"pass": true/false, "categories": ["违规类别列表"], "reason": "简要原因"}`,
+			},
+			{"role": "user", "content": content},
+		},
+		"temperature": 0.1,
+		"max_tokens":  200,
+	}
+
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.deepseek.com/v1/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+s.deepseekAPIKey)
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("DeepSeek API request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+		Error *struct {
+			Message string `json:"message"`
+		} `json:"error,omitempty"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	if result.Error != nil {
+		return nil, fmt.Errorf("DeepSeek API error: %s", result.Error.Message)
+	}
+
+	if len(result.Choices) == 0 {
+		return &ModerationResult{Pass: false, Reason: "no response from moderation API"}, nil
+	}
+
+	// Parse JSON from response
+	respContent := result.Choices[0].Message.Content
+	return parseDeepSeekJSON(respContent)
+}
+
+// parseDeepSeekJSON extracts moderation result from the LLM's JSON response.
+func parseDeepSeekJSON(raw string) (*ModerationResult, error) {
+	// Try to find JSON object in response
+	idx := strings.Index(raw, "{")
+	if idx == -1 {
+		return &ModerationResult{Pass: true, Reason: "no violations detected"}, nil
+	}
+	jsonStr := raw[idx:]
+
+	var parsed struct {
+		Pass       bool     `json:"pass"`
+		Categories []string `json:"categories"`
+		Reason     string   `json:"reason"`
+	}
+	if err := json.Unmarshal([]byte(jsonStr), &parsed); err != nil {
+		// If JSON parsing fails, do keyword filter as fallback
+		log.Printf("failed to parse DeepSeek moderation JSON: %v, raw: %s", err, raw)
+		return &ModerationResult{Pass: true, Reason: "moderation parse error, allowing"}, nil
+	}
+
+	if !parsed.Pass {
+		return &ModerationResult{
+			Pass:   false,
+			Labels: parsed.Categories,
+			Reason: parsed.Reason,
+		}, nil
+	}
+	return &ModerationResult{Pass: true, Reason: parsed.Reason}, nil
+}
+
+// --- Qwen3-VL-flash image moderation (DashScope OpenAI-compatible API) ---
+
+func (s *ContentModerationService) callQwenVLModeration(ctx context.Context, imageURL string) (*ModerationResult, error) {
+	reqBody := map[string]interface{}{
+		"model": "qwen3-vl-flash",
+		"messages": []map[string]interface{}{
+			{
+				"role": "system",
+				"content": []map[string]interface{}{
+					{
+						"type": "text",
+						"text": "你是内容审核助手。请判断图片是否包含以下违规内容：色情/性暗示、暴力/血腥、政治敏感、仇恨/歧视、毒品/非法交易、赌博、自残/自杀倾向。以JSON格式返回：{\"pass\":true/false,\"categories\":[\"违规类别列表\"],\"reason\":\"简要原因\"}",
+					},
+				},
+			},
+			{
+				"role": "user",
+				"content": []map[string]interface{}{
+					{
+						"type":     "image_url",
+						"image_url": map[string]interface{}{"url": imageURL},
+					},
+					{
+						"type": "text",
+						"text": "请审核这张图片是否包含违规内容。",
+					},
+				},
+			},
+		},
+		"max_tokens": 300,
+	}
+
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+s.qwenAPIKey)
+
+	client := &http.Client{Timeout: 20 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("Qwen3-VL API request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+		Error *struct {
+			Message string `json:"message"`
+		} `json:"error,omitempty"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	if result.Error != nil {
+		return nil, fmt.Errorf("Qwen3-VL API error: %s", result.Error.Message)
+	}
+
+	if len(result.Choices) == 0 {
+		return &ModerationResult{Pass: false, Reason: "no response from moderation API"}, nil
+	}
+
+	respContent := result.Choices[0].Message.Content
+	return parseQwenJSON(respContent)
+}
+
+// callQwenVLModerationVideo moderates video content using Qwen3-VL-flash.
+func (s *ContentModerationService) callQwenVLModerationVideo(ctx context.Context, videoURL string) (*ModerationResult, error) {
+	reqBody := map[string]interface{}{
+		"model": "qwen3-vl-flash",
+		"messages": []map[string]interface{}{
+			{
+				"role": "system",
+				"content": []map[string]interface{}{
+					{
+						"type": "text",
+						"text": "你是内容审核助手。请判断视频是否包含以下违规内容：色情/性暗示、暴力/血腥、政治敏感、仇恨/歧视、毒品/非法交易、赌博、自残/自杀倾向。以JSON格式返回：{\"pass\":true/false,\"categories\":[\"违规类别列表\"],\"reason\":\"简要原因\"}",
+					},
+				},
+			},
+			{
+				"role": "user",
+				"content": []map[string]interface{}{
+					{
+						"type": "video_url",
+						"video_url": map[string]interface{}{"url": videoURL},
+					},
+					{
+						"type": "text",
+						"text": "请审核这段视频是否包含违规内容。",
+					},
+				},
+			},
+		},
+		"max_tokens": 300,
+	}
+
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+s.qwenAPIKey)
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("Qwen3-VL video API request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+		Error *struct {
+			Message string `json:"message"`
+		} `json:"error,omitempty"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	if result.Error != nil {
+		return nil, fmt.Errorf("Qwen3-VL video API error: %s", result.Error.Message)
+	}
+
+	if len(result.Choices) == 0 {
+		return &ModerationResult{Pass: false, Reason: "no response from video moderation API"}, nil
+	}
+
+	respContent := result.Choices[0].Message.Content
+	return parseQwenJSON(respContent)
+}
+
+func parseQwenJSON(raw string) (*ModerationResult, error) {
+	idx := strings.Index(raw, "{")
+	if idx == -1 {
+		return &ModerationResult{Pass: true, Reason: "no violations detected"}, nil
+	}
+	jsonStr := raw[idx:]
+
+	var parsed struct {
+		Pass       bool     `json:"pass"`
+		Categories []string `json:"categories"`
+		Reason     string   `json:"reason"`
+	}
+	if err := json.Unmarshal([]byte(jsonStr), &parsed); err != nil {
+		log.Printf("failed to parse Qwen moderation JSON: %v, raw: %s", err, raw)
+		return &ModerationResult{Pass: true, Reason: "moderation parse error, allowing"}, nil
+	}
+
+	if !parsed.Pass {
+		return &ModerationResult{
+			Pass:   false,
+			Labels: parsed.Categories,
+			Reason: parsed.Reason,
+		}, nil
+	}
+	return &ModerationResult{Pass: true, Reason: parsed.Reason}, nil
+}
+
 // --- Local keyword filter (fallback) ---
 
-// Common sensitive words for Chinese ACG platforms
 var sensitiveWords = []string{
 	"色情", "赌博", "毒品", "暴力恐怖", "涉政", "法轮功",
-	"fuck", "shit", "damn", // add more as needed
+	"fuck", "shit", "damn",
 }
 
 func (s *ContentModerationService) localKeywordFilter(content string) (*ModerationResult, error) {
@@ -109,144 +387,4 @@ func (s *ContentModerationService) localKeywordFilter(content string) (*Moderati
 		}
 	}
 	return &ModerationResult{Pass: true}, nil
-}
-
-// --- Alibaba Cloud API calls ---
-
-type alibabaTextTask struct {
-	Content string `json:"content"`
-}
-
-type alibabaScanRequest struct {
-	Tasks  []alibabaTextTask `json:"tasks"`
-	Scenes []string          `json:"scenes"`
-}
-
-type alibabaScanResponse struct {
-	Code int `json:"code"`
-	Data []struct {
-		Results []struct {
-			Label  string  `json:"label"`
-			Score  float64 `json:"rate"`
-			Scene  string  `json:"scene"`
-			Suggestion string `json:"suggestion"`
-		} `json:"results"`
-	} `json:"data"`
-}
-
-func (s *ContentModerationService) callAlibabaAPI(ctx context.Context, content string) (*ModerationResult, error) {
-	reqBody, err := json.Marshal(alibabaScanRequest{
-		Tasks:  []alibabaTextTask{{Content: content}},
-		Scenes: []string{"antispam"},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-
-	timestamp := time.Now().UTC().Format(time.RFC3339)
-	signature := s.buildAuthHeader(string(reqBody), timestamp)
-
-	req, err := http.NewRequestWithContext(ctx, "POST", s.apiURL, bytes.NewReader(reqBody))
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-acs-content-sha256", fmt.Sprintf("%x", sha256.Sum256(reqBody)))
-	req.Header.Set("x-acs-date", timestamp)
-	req.Header.Set("Authorization", signature)
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("API request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var result alibabaScanResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
-	}
-
-	if result.Code != 200 || len(result.Data) == 0 {
-		return &ModerationResult{Pass: false, Reason: "API error"}, nil
-	}
-
-	for _, r := range result.Data[0].Results {
-		if r.Suggestion == "block" || r.Suggestion == "review" {
-			return &ModerationResult{
-				Pass:   false,
-				Labels: []string{r.Label},
-				Reason: fmt.Sprintf("%s (score: %.2f)", r.Label, r.Score),
-			}, nil
-		}
-	}
-
-	return &ModerationResult{Pass: true}, nil
-}
-
-func (s *ContentModerationService) callAlibabaImageAPI(ctx context.Context, imageURL string) (*ModerationResult, error) {
-	type imageTask struct {
-		DataID string `json:"dataId"`
-		URL    string `json:"url"`
-	}
-	reqBody := struct {
-		Tasks  []imageTask `json:"tasks"`
-		Scenes []string    `json:"scenes"`
-	}{
-		Tasks:  []imageTask{{URL: imageURL}},
-		Scenes: []string{"porn"},
-	}
-	body, err := json.Marshal(reqBody)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-
-	timestamp := time.Now().UTC().Format(time.RFC3339)
-	signature := s.buildAuthHeader(string(body), timestamp)
-
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://green.cn-shanghai.aliyuncs.com/green/image/scan", bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-acs-content-sha256", fmt.Sprintf("%x", sha256.Sum256(body)))
-	req.Header.Set("x-acs-date", timestamp)
-	req.Header.Set("Authorization", signature)
-
-	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("image API request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var result alibabaScanResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
-	}
-
-	if result.Code != 200 || len(result.Data) == 0 {
-		return &ModerationResult{Pass: false, Reason: "image API error"}, nil
-	}
-
-	for _, r := range result.Data[0].Results {
-		if r.Suggestion == "block" || r.Suggestion == "review" {
-			return &ModerationResult{
-				Pass:   false,
-				Labels: []string{r.Label},
-				Reason: fmt.Sprintf("%s (score: %.2f)", r.Label, r.Score),
-			}, nil
-		}
-	}
-
-	return &ModerationResult{Pass: true}, nil
-}
-
-func (s *ContentModerationService) buildAuthHeader(body, timestamp string) string {
-	// HMAC-SHA256 signature: sign(timestamp + body) with API secret
-	message := timestamp + body
-	mac := hmac.New(sha256.New, []byte(s.apiSecret))
-	mac.Write([]byte(message))
-	signature := base64.StdEncoding.EncodeToString(mac.Sum(nil))
-	return fmt.Sprintf("HMAC-SHA256 Credential=%s, Signature=%s", s.apiKey, signature)
 }

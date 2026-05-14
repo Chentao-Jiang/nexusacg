@@ -48,6 +48,12 @@ func NewLocalStorage(uploadDir, baseURL string) *LocalStorage {
 func (s *LocalStorage) Upload(file *multipart.FileHeader) (string, error) {
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 
+	// Sanitize: reject filenames with path separators
+	cleanName := filepath.Clean(file.Filename)
+	if strings.Contains(cleanName, string(filepath.Separator)) || strings.Contains(cleanName, string(filepath.ListSeparator)) {
+		return "", fmt.Errorf("invalid filename")
+	}
+
 	// Determine file type and apply appropriate limits
 	isVideo := allowedVideoExtensions[ext]
 	maxSize := maxImageSize

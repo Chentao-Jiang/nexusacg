@@ -61,12 +61,17 @@ func RateLimit() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
 		if !apiLimiter.allow(ip) {
+			c.Header("Retry-After", "60")
+			c.Header("X-RateLimit-Limit", "100")
+			c.Header("X-RateLimit-Window", "60s")
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
 				"code":    429,
 				"message": "请求过于频繁，请稍后再试",
 			})
 			return
 		}
+		c.Header("X-RateLimit-Limit", "100")
+		c.Header("X-RateLimit-Window", "60s")
 		c.Next()
 	}
 }
