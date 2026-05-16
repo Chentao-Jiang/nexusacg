@@ -306,8 +306,8 @@ if echo "$resp" | grep -qE '"code":401|"missing authorization'; then pass "unaut
 ##############################################################################
 section "14. Admin Endpoints"
 ##############################################################################
-# Promote admin user to admin role
-PGPASSWORD=nexusacg_dev_pass psql -h 127.0.0.1 -p 5432 -U nexusacg -d nexusacg -c \
+# Promote admin user to admin role (DB is in Docker container)
+docker exec nexusacg-db psql -U nexusacg -d nexusacg -c \
   "UPDATE users SET role='admin' WHERE phone='$ADMIN_PHONE';" > /dev/null 2>&1
 
 sleep_rate
