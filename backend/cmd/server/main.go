@@ -121,6 +121,8 @@ func main() {
 	profitShareSvc := service.NewProfitShareService(db, cfg.PlatformFeePercent, paymentSvc)
 	certificationSvc := service.NewCertificationService(db)
 	eventListingSvc := service.NewEventServiceListingService(db)
+	serviceProductSvc := service.NewServiceProductService(db)
+	promotionSvc := service.NewPromotionService(db)
 
 	// Router
 	r := gin.Default()
@@ -174,6 +176,8 @@ func main() {
 	handler.NewAdminHandler(v1, adminSvc, authMW, middleware.RequireAdmin())
 	handler.NewCertificationHandler(v1, certificationSvc, authMW, db)
 	handler.NewEventServiceListingHandler(v1, eventListingSvc, authMW)
+	handler.NewServiceProductHandler(v1, serviceProductSvc, authMW)
+	handler.NewPromotionHandler(v1, promotionSvc, authMW, middleware.RequireAdmin())
 
 	// Order timeout cron: cancel pending orders after configured timeout
 	if cfg.OrderTimeoutMinutes > 0 {
@@ -203,6 +207,28 @@ func main() {
 			}
 		}()
 	}
+
+	// Promotion expiry cron: expire promotions past their end date
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		log.Println("promotion expiry cron started")
+		// Run immediately on startup
+		expired, err := promotionSvc.ExpirePromotions(ctx)
+		if err != nil {
+			log.Printf("promotion expiry cron error: %v", err)
+		} else if expired > 0 {
+			log.Printf("promotion expiry cron: expired %d promotions", expired)
+		}
+		for range ticker.C {
+			expired, err := promotionSvc.ExpirePromotions(ctx)
+			if err != nil {
+				log.Printf("promotion expiry cron error: %v", err)
+			} else if expired > 0 {
+				log.Printf("promotion expiry cron: expired %d promotions", expired)
+			}
+		}
+	}()
 
 	// Graceful shutdown
 	log.Printf("server starting on :%s", cfg.Port)

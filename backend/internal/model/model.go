@@ -281,3 +281,51 @@ type EmailVerificationToken struct {
 }
 
 func (EmailVerificationToken) TableName() string { return "email_verification_tokens" }
+
+// ServiceProduct represents a service offering in the service zone.
+// Unlike physical products, availability is schedule-based and display includes
+// portfolio images of completed work.
+type ServiceProduct struct {
+	ID                uuid.UUID   `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	ServiceProviderID uuid.UUID   `json:"service_provider_id" gorm:"type:uuid;index"`
+	UserID            uuid.UUID   `json:"user_id" gorm:"type:uuid;index"`
+	CategoryID        *uuid.UUID  `json:"category_id,omitempty" gorm:"type:uuid"`
+	Name              string      `json:"name"`
+	Description       string      `json:"description"`
+	Price             float64     `json:"price"`
+	OriginalPrice     *float64    `json:"original_price,omitempty"`
+	Currency          string      `json:"currency" gorm:"default:CNY"`
+	ServiceType       string      `json:"service_type" gorm:"index"` // makeup_artist | wig_stylist | photographer | post_editor | props_maker
+	Images            StringArray `json:"images" gorm:"type:jsonb;default:'[]'"`
+	PortfolioImages   StringArray `json:"portfolio_images" gorm:"type:jsonb;default:'[]'"`
+	Status            string      `json:"status" gorm:"default:active;index"`
+	Tags              StringArray `json:"tags" gorm:"type:jsonb;default:'[]'"`
+	CreatedAt         time.Time   `json:"created_at"`
+	UpdatedAt         time.Time   `json:"updated_at"`
+}
+
+func (ServiceProduct) TableName() string { return "service_products" }
+
+// PromotionApplication tracks traffic promotion (投流) requests.
+type PromotionApplication struct {
+	ID              uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	UserID          uuid.UUID  `json:"user_id" gorm:"type:uuid;index"`
+	TargetType      string     `json:"target_type" gorm:"index"` // product | service_product
+	TargetID        uuid.UUID  `json:"target_id" gorm:"type:uuid;index"`
+	Budget          float64    `json:"budget"`
+	Duration        int        `json:"duration"` // days
+	Reason          string     `json:"reason"`
+	Status          string     `json:"status" gorm:"default:pending;index"` // pending | approved | rejected | active | expired
+	ReviewedBy      *uuid.UUID `json:"reviewed_by,omitempty" gorm:"type:uuid"`
+	ReviewedAt      *time.Time `json:"reviewed_at,omitempty"`
+	RejectionReason *string    `json:"rejection_reason,omitempty"`
+	ActivatedAt     *time.Time `json:"activated_at,omitempty"`
+	ExpiresAt       *time.Time `json:"expires_at,omitempty"`
+	LinkedPostID    *uuid.UUID `json:"linked_post_id,omitempty" gorm:"type:uuid"` // Phase 2
+	Impressions     int        `json:"impressions" gorm:"default:0"`
+	Clicks          int        `json:"clicks" gorm:"default:0"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+}
+
+func (PromotionApplication) TableName() string { return "promotion_applications" }

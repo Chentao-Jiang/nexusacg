@@ -247,7 +247,7 @@ type CreateProductRequest struct {
 	Description   string     `json:"description" binding:"max=5000"`
 	Price         float64    `json:"price" binding:"required,gt=0,lt=1000000"`
 	OriginalPrice *float64   `json:"original_price"`
-	Zone          string     `json:"zone" binding:"required,oneof=cosplay peripheral"`
+	Zone          string     `json:"zone" binding:"required,oneof=peripheral costume_makeup_props"`
 	SellerType    string     `json:"seller_type" binding:"omitempty,oneof=certified_merchant certified_service uncertified"`
 	SourceType    string     `json:"source_type" binding:"required,oneof=official agent self_made"`
 	Images        []string   `json:"images" binding:"max=20"`
@@ -1067,4 +1067,316 @@ func (h *EventServiceListingHandler) ListSchedules(c *gin.Context) {
 		return
 	}
 	Success(c, schedules)
+}
+
+type ServiceProductHandler struct {
+	svc *service.ServiceProductService
+}
+
+func NewServiceProductHandler(r *gin.RouterGroup, svc *service.ServiceProductService, authMW gin.HandlerFunc) {
+	h := &ServiceProductHandler{svc: svc}
+
+	public := r.Group("/service-products")
+	public.GET("", h.List)
+	public.GET("/:id", h.Get)
+	public.GET("/:id/schedules", h.GetSchedules)
+
+	private := r.Group("/service-products")
+	private.Use(authMW)
+	private.POST("", h.Create)
+	private.PUT("/:id", h.Update)
+	private.DELETE("/:id", h.Delete)
+	private.GET("/my", h.MyListings)
+}
+
+type createServiceProductRequest struct {
+	ServiceProviderID uuid.UUID  `json:"service_provider_id" binding:"required"`
+	CategoryID        *uuid.UUID `json:"category_id"`
+	Name              string     `json:"name" binding:"required,min=1,max=200"`
+	Description       string     `json:"description" binding:"required,max=5000"`
+	Price             float64    `json:"price" binding:"required,gt=0"`
+	OriginalPrice     *float64   `json:"original_price"`
+	ServiceType       string     `json:"service_type" binding:"required,oneof=makeup_artist wig_stylist photographer post_editor props_maker"`
+	Images            []string   `json:"images" binding:"max=20"`
+	PortfolioImages   []string   `json:"portfolio_images" binding:"required,min=1,max=30"`
+	Tags              []string   `json:"tags" binding:"max=10"`
+}
+
+func (h *ServiceProductHandler) List(c *gin.Context) {
+	var input service.ServiceProductListInput
+	if err := c.ShouldBindQuery(&input); err != nil {
+		BadRequest(c, "invalid query parameters: "+err.Error())
+		return
+	}
+	results, total, err := h.svc.List(c.Request.Context(), input)
+	if err != nil {
+		InternalError(c, err.Error())
+		return
+	}
+	Success(c, gin.H{
+		"items": results,
+		"total": total,
+		"page":  input.Page,
+		"size":  input.PageSize,
+	})
+}
+
+func (h *ServiceProductHandler) Get(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		BadRequest(c, "invalid service product id")
+		return
+	}
+	result, err := h.svc.Get(c.Request.Context(), id)
+	if err != nil {
+		NotFound(c, err.Error())
+		return
+	}
+	Success(c, result)
+}
+
+func (h *ServiceProductHandler) Create(c *gin.Context) {
+	var req createServiceProductRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		BadRequest(c, "invalid request: "+err.Error())
+		return
+	}
+	userIDStr, _ := c.Get("user_id")
+	uid, _ := uuid.Parse(userIDStr.(string))
+
+	product, err := h.svc.Create(c.Request.Context(), service.CreateServiceProductInput{
+		ServiceProviderID: req.ServiceProviderID,
+		UserID:            uid,
+		CategoryID:        req.CategoryID,
+		Name:              req.Name,
+		Description:       req.Description,
+		Price:             req.Price,
+		OriginalPrice:     req.OriginalPrice,
+		ServiceType:       req.ServiceType,
+		Images:            req.Images,
+		PortfolioImages:   req.PortfolioImages,
+		Tags:              req.Tags,
+	})
+	if err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
+	Success(c, product)
+}
+
+func (h *ServiceProductHandler) Update(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		BadRequest(c, "invalid service product id")
+		return
+	}
+	userIDStr, _ := c.Get("user_id")
+	uid, _ := uuid.Parse(userIDStr.(string))
+
+	var req createServiceProductRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		BadRequest(c, "invalid request: "+err.Error())
+		return
+	}
+
+	product, err := h.svc.Update(c.Request.Context(), id, uid, service.CreateServiceProductInput{
+		Name:            req.Name,
+		Description:     req.Description,
+		Price:           req.Price,
+		OriginalPrice:   req.OriginalPrice,
+		Images:          req.Images,
+		PortfolioImages: req.PortfolioImages,
+		Tags:            req.Tags,
+	})
+	if err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
+	Success(c, product)
+}
+
+func (h *ServiceProductHandler) Delete(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		BadRequest(c, "invalid service product id")
+		return
+	}
+	userIDStr, _ := c.Get("user_id")
+	uid, _ := uuid.Parse(userIDStr.(string))
+
+	if err := h.svc.Delete(c.Request.Context(), id, uid); err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
+	Success(c, nil)
+}
+
+func (h *ServiceProductHandler) MyListings(c *gin.Context) {
+	userIDStr, _ := c.Get("user_id")
+	uid, _ := uuid.Parse(userIDStr.(string))
+	page := 1
+	if p := c.Query("page"); p != "" {
+		fmt.Sscanf(p, "%d", &page)
+	}
+	pageSize := 20
+	if ps := c.Query("page_size"); ps != "" {
+		fmt.Sscanf(ps, "%d", &pageSize)
+	}
+
+	products, total, err := h.svc.GetByUser(c.Request.Context(), uid, page, pageSize)
+	if err != nil {
+		InternalError(c, err.Error())
+		return
+	}
+	Success(c, gin.H{
+		"items": products,
+		"total": total,
+		"page":  page,
+		"size":  pageSize,
+	})
+}
+
+func (h *ServiceProductHandler) GetSchedules(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		BadRequest(c, "invalid service product id")
+		return
+	}
+	var eventID *uuid.UUID
+	if eid := c.Query("event_id"); eid != "" {
+		if parsed, err := uuid.Parse(eid); err == nil {
+			eventID = &parsed
+		}
+	}
+	schedules, err := h.svc.GetSchedules(c.Request.Context(), id, eventID)
+	if err != nil {
+		InternalError(c, err.Error())
+		return
+	}
+	Success(c, schedules)
+}
+
+type PromotionHandler struct {
+	svc *service.PromotionService
+}
+
+func NewPromotionHandler(r *gin.RouterGroup, svc *service.PromotionService, authMW gin.HandlerFunc, requireAdmin gin.HandlerFunc) {
+	h := &PromotionHandler{svc: svc}
+
+	user := r.Group("/promotions")
+	user.Use(authMW)
+	user.POST("", h.CreateApplication)
+	user.GET("/my", h.MyApplications)
+
+	admin := r.Group("/admin/promotions")
+	admin.Use(authMW)
+	admin.Use(requireAdmin)
+	admin.GET("", h.ListApplications)
+	admin.POST("/:id/review", h.ReviewApplication)
+}
+
+type createPromotionRequest struct {
+	TargetType string  `json:"target_type" binding:"required,oneof=product service_product"`
+	TargetID   string  `json:"target_id" binding:"required"`
+	Budget     float64 `json:"budget" binding:"required,gt=0"`
+	Duration   int     `json:"duration" binding:"required,gt=0,lte=365"`
+	Reason     string  `json:"reason" binding:"required,max=1000"`
+}
+
+func (h *PromotionHandler) CreateApplication(c *gin.Context) {
+	var req createPromotionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		BadRequest(c, "invalid request: "+err.Error())
+		return
+	}
+	targetID, err := uuid.Parse(req.TargetID)
+	if err != nil {
+		BadRequest(c, "invalid target_id")
+		return
+	}
+	userIDStr, _ := c.Get("user_id")
+	uid, _ := uuid.Parse(userIDStr.(string))
+
+	app, err := h.svc.CreateApplication(c.Request.Context(), service.CreatePromotionApplicationInput{
+		UserID:     uid,
+		TargetType: req.TargetType,
+		TargetID:   targetID,
+		Budget:     req.Budget,
+		Duration:   req.Duration,
+		Reason:     req.Reason,
+	})
+	if err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
+	Success(c, app)
+}
+
+func (h *PromotionHandler) MyApplications(c *gin.Context) {
+	userIDStr, _ := c.Get("user_id")
+	uid, _ := uuid.Parse(userIDStr.(string))
+	page := 1
+	if p := c.Query("page"); p != "" {
+		fmt.Sscanf(p, "%d", &page)
+	}
+	pageSize := 20
+	if ps := c.Query("page_size"); ps != "" {
+		fmt.Sscanf(ps, "%d", &pageSize)
+	}
+
+	result, err := h.svc.GetUserApplications(uid, page, pageSize)
+	if err != nil {
+		InternalError(c, err.Error())
+		return
+	}
+	Success(c, result)
+}
+
+type reviewPromotionRequest struct {
+	Approved        bool    `json:"approved"`
+	RejectionReason *string `json:"rejection_reason,omitempty"`
+}
+
+func (h *PromotionHandler) ReviewApplication(c *gin.Context) {
+	appID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		BadRequest(c, "invalid application ID")
+		return
+	}
+	var req reviewPromotionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		BadRequest(c, "invalid request: "+err.Error())
+		return
+	}
+	adminIDStr, _ := c.Get("user_id")
+	adminID, _ := uuid.Parse(adminIDStr.(string))
+
+	if err := h.svc.ReviewApplication(c.Request.Context(), appID, service.ReviewPromotionInput{
+		AdminID:         adminID,
+		Approved:        req.Approved,
+		RejectionReason: req.RejectionReason,
+	}); err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
+	Success(c, gin.H{"reviewed": true})
+}
+
+func (h *PromotionHandler) ListApplications(c *gin.Context) {
+	var input service.PromotionListInput
+	input.Status = c.Query("status")
+	input.TargetType = c.Query("target_type")
+	if p := c.Query("page"); p != "" {
+		fmt.Sscanf(p, "%d", &input.Page)
+	}
+	if ps := c.Query("page_size"); ps != "" {
+		fmt.Sscanf(ps, "%d", &input.PageSize)
+	}
+
+	results, err := h.svc.GetPromotionsWithTarget(input)
+	if err != nil {
+		InternalError(c, err.Error())
+		return
+	}
+	Success(c, results)
 }
