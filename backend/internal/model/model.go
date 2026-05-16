@@ -47,6 +47,7 @@ type Product struct {
 	Currency      string       `json:"currency" gorm:"default:CNY"`
 	Zone          string       `json:"zone" gorm:"index"`
 	SourceType    string       `json:"source_type" gorm:"default:self_made"`
+	SellerType    string       `json:"seller_type" gorm:"default:uncertified;index"`
 	Images        StringArray  `json:"images" gorm:"type:jsonb;default:'[]'"`
 	Stock         int          `json:"stock" gorm:"default:0"`
 	Status        string       `json:"status" gorm:"default:active;index"`
@@ -219,6 +220,56 @@ type ProfitShareRecord struct {
 }
 
 func (ProfitShareRecord) TableName() string { return "profit_share_records" }
+
+// CertificationApplication stores merchant/service_provider certification requests.
+type CertificationApplication struct {
+	ID                 uuid.UUID   `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	UserID             uuid.UUID   `json:"user_id" gorm:"type:uuid;index"`
+	Type               string      `json:"type" gorm:"index"` // merchant | service_provider
+	BusinessLicenseURL *string     `json:"business_license_url,omitempty"`
+	ProductCategory    *string     `json:"product_category,omitempty"`
+	StoreName          *string     `json:"store_name,omitempty"`
+	ProviderType       *string     `json:"provider_type,omitempty"` // makeup_artist | wig_stylist | photographer | post_editor | props_maker
+	PortfolioImages    StringArray `json:"portfolio_images" gorm:"type:jsonb;default:'[]'"`
+	Status             string      `json:"status" gorm:"default:pending;index"` // pending | approved | rejected
+	ReviewedBy         *uuid.UUID  `json:"reviewed_by,omitempty" gorm:"type:uuid"`
+	ReviewedAt         *time.Time  `json:"reviewed_at,omitempty"`
+	RejectionReason    *string     `json:"rejection_reason,omitempty"`
+	CreatedAt          time.Time   `json:"created_at"`
+	UpdatedAt          time.Time   `json:"updated_at"`
+}
+
+func (CertificationApplication) TableName() string { return "certification_applications" }
+
+// ServiceSchedule stores makeup_artist/photographer availability slots.
+type ServiceSchedule struct {
+	ID                uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	ServiceProviderID uuid.UUID  `json:"service_provider_id" gorm:"type:uuid;index"`
+	EventID           *uuid.UUID `json:"event_id,omitempty" gorm:"type:uuid"`
+	Date              time.Time  `json:"date"`
+	StartTime         *time.Time `json:"start_time,omitempty"`
+	EndTime           *time.Time `json:"end_time,omitempty"`
+	Status            string     `json:"status" gorm:"default:available"` // available | booked | unavailable
+	Notes             string     `json:"notes" gorm:"default:''"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+}
+
+func (ServiceSchedule) TableName() string { return "service_schedules" }
+
+// EventServiceListing links a service provider to an event with pricing.
+type EventServiceListing struct {
+	ID                uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	EventID           uuid.UUID `json:"event_id" gorm:"type:uuid;index"`
+	ServiceProviderID uuid.UUID `json:"service_provider_id" gorm:"type:uuid;index"`
+	Price             float64   `json:"price"`
+	Description       string    `json:"description"`
+	Status            string    `json:"status" gorm:"default:active"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+func (EventServiceListing) TableName() string { return "event_service_listings" }
 
 // EmailVerificationToken stores email verification tokens (24h TTL).
 type EmailVerificationToken struct {

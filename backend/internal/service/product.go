@@ -23,12 +23,13 @@ type ProductListInput struct {
 	Zone       string  `form:"zone"`
 	CategoryID string  `form:"category_id"`
 	Keyword    string  `form:"keyword"`
-	Tags       string  `form:"tags"`       // comma-separated tags
+	Tags       string  `form:"tags"`
 	MinPrice   float64 `form:"min_price"`
 	MaxPrice   float64 `form:"max_price"`
+	SellerType string  `form:"seller_type"`
 	Page       int     `form:"page,default=1"`
 	PageSize   int     `form:"page_size,default=20"`
-	Sort       string  `form:"sort,default=newest"`
+	Sort       string  `form:"sort,default=certified_first"`
 }
 
 type ProductListResult struct {
@@ -38,14 +39,12 @@ type ProductListResult struct {
 	Size       int                   `json:"page_size"`
 }
 
-// ProductWithCategory includes the joined category name.
 type ProductWithCategory struct {
 	model.Product
 	CategoryName string `json:"category_name"`
 }
 
 func (s *ProductService) List(ctx context.Context, input ProductListInput) (*ProductListResult, error) {
-	// Build query with LEFT JOIN to categories
 	query := s.db.Table("products").
 		Select("products.*, COALESCE(categories.name, '') AS category_name").
 		Joins("LEFT JOIN categories ON products.category_id = categories.id").
@@ -59,14 +58,16 @@ func (s *ProductService) List(ctx context.Context, input ProductListInput) (*Pro
 			query = query.Where("products.category_id = ?", catID)
 		}
 	}
+	if input.SellerType != "" {
+		query = query.Where("products.seller_type = ?", input.SellerType)
+	}
 	if input.Keyword != "" {
-		// Split keyword into words for multi-term search
 		words := []string{}
 		for _, word := range strings.Fields(input.Keyword) {
 			words = append(words, "%"+word+"%")
 		}
 		conditions := make([]string, len(words))
-		args := make([]interface{}, 0, len(words)*3)
+		args := make([]interface{}, 0, len(words)*4)
 		for i, w := range words {
 			conditions[i] = "(products.name ILIKE ? OR products.anime_name ILIKE ? OR products.character_name ILIKE ? OR products.description ILIKE ?)"
 			args = append(args, w, w, w, w)
@@ -74,7 +75,6 @@ func (s *ProductService) List(ctx context.Context, input ProductListInput) (*Pro
 		query = query.Where(strings.Join(conditions, " AND "), args...)
 	}
 	if input.Tags != "" {
-		// Filter by tags using PostgreSQL JSONB containment
 		tagList := strings.Split(input.Tags, ",")
 		for _, tag := range tagList {
 			tag = strings.TrimSpace(tag)
@@ -101,13 +101,16 @@ func (s *ProductService) List(ctx context.Context, input ProductListInput) (*Pro
 			countQuery = countQuery.Where("category_id = ?", catID)
 		}
 	}
+	if input.SellerType != "" {
+		countQuery = countQuery.Where("seller_type = ?", input.SellerType)
+	}
 	if input.Keyword != "" {
 		words := []string{}
 		for _, word := range strings.Fields(input.Keyword) {
 			words = append(words, "%"+word+"%")
 		}
 		conditions := make([]string, len(words))
-		args := make([]interface{}, 0, len(words)*3)
+		args := make([]interface{}, 0, len(words)*4)
 		for i, w := range words {
 			conditions[i] = "(name ILIKE ? OR anime_name ILIKE ? OR character_name ILIKE ? OR description ILIKE ?)"
 			args = append(args, w, w, w, w)
@@ -138,6 +141,8 @@ func (s *ProductService) List(ctx context.Context, input ProductListInput) (*Pro
 	}
 
 	switch input.Sort {
+	case "certified_first":
+		query = query.Order("CASE products.seller_type WHEN 'certified_merchant' THEN 0 WHEN 'certified_service' THEN 1 ELSE 2 END, products.created_at DESC")
 	case "price_asc":
 		query = query.Order("products.price ASC")
 	case "price_desc":
@@ -170,19 +175,20 @@ func (s *ProductService) Get(ctx context.Context, id uuid.UUID) (*model.Product,
 }
 
 type CreateProductInput struct {
-	SellerID      uuid.UUID  `json:"seller_id"`
-	CategoryID    *uuid.UUID `json:"category_id"`
-	Name          string     `json:"name"`
-	Description   string     `json:"description"`
-	Price         float64    `json:"price"`
-	OriginalPrice *float64   `json:"original_price"`
-	Zone          string     `json:"zone"`
-	SourceType    string     `json:"source_type"`
-	Images        []string   `json:"images"`
-	Stock         int        `json:"stock"`
-	Tags          []string   `json:"tags"`
-	CharacterName *string    `json:"character_name"`
-	AnimeName     *string    `json:"anime_name"`
+	SellerID   uuid.UUID  `json:"seller_id"`
+	CategoryID *uuid.UUID `json:"category_id"`
+	Name       string     `json:"name"`
+	Description string    `json:"description"`
+	Price      float64    `json:"price"`
+	OriginalPrice *float64 `json:"original_price"`
+	Zone       string     `json:"zone"`
+	SourceType string     `json:"source_type"`
+	SellerType string     `json:"seller_type"`
+	Images     []string   `json:"images"`
+	Stock      int        `json:"stock"`
+	Tags       []string   `json:"tags"`
+	CharacterName *string `json:"character_name"`
+	AnimeName  *string    `json:"anime_name"`
 }
 
 func (s *ProductService) Create(ctx context.Context, input CreateProductInput) (*model.Product, error) {
@@ -192,6 +198,24 @@ func (s *ProductService) Create(ctx context.Context, input CreateProductInput) (
 	if input.Tags == nil {
 		input.Tags = []string{}
 	}
+
+	// Auto-determine seller_type if not provided
+	if input.SellerType == "" {
+		var app model.CertificationApplication
+		err := s.db.Where("user_id = ? AND status = ?", input.SellerID, "approved").
+			Order("updated_at DESC").First(&app).Error
+		if err == nil {
+			if app.Type == "merchant" {
+				input.SellerType = "certified_merchant"
+			} else if app.Type == "service_provider" {
+				input.SellerType = "certified_service"
+			}
+		}
+		if input.SellerType == "" {
+			input.SellerType = "uncertified"
+		}
+	}
+
 	product := model.Product{
 		ID:            uuid.New(),
 		SellerID:      input.SellerID,
@@ -202,6 +226,7 @@ func (s *ProductService) Create(ctx context.Context, input CreateProductInput) (
 		OriginalPrice: input.OriginalPrice,
 		Zone:          input.Zone,
 		SourceType:    input.SourceType,
+		SellerType:    input.SellerType,
 		Images:        input.Images,
 		Stock:         input.Stock,
 		Status:        "active",

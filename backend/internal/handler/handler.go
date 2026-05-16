@@ -139,6 +139,7 @@ func (h *ProductHandler) Create(c *gin.Context) {
 		OriginalPrice: req.OriginalPrice,
 		Zone:          req.Zone,
 		SourceType:    req.SourceType,
+		SellerType:    req.SellerType,
 		Images:        req.Images,
 		Stock:         req.Stock,
 		Tags:          req.Tags,
@@ -247,6 +248,7 @@ type CreateProductRequest struct {
 	Price         float64    `json:"price" binding:"required,gt=0,lt=1000000"`
 	OriginalPrice *float64   `json:"original_price"`
 	Zone          string     `json:"zone" binding:"required,oneof=cosplay peripheral"`
+	SellerType    string     `json:"seller_type" binding:"omitempty,oneof=certified_merchant certified_service uncertified"`
 	SourceType    string     `json:"source_type" binding:"required,oneof=official agent self_made"`
 	Images        []string   `json:"images" binding:"max=20"`
 	Stock         int        `json:"stock" binding:"gte=0,lte=999999"`
@@ -944,4 +946,125 @@ func (h *OrderHandler) Confirm(c *gin.Context) {
 type ShipOrderRequest struct {
 	TrackingNumber string `json:"tracking_number"`
 	Carrier        string `json:"carrier"`
+}
+
+type EventServiceListingHandler struct {
+	svc *service.EventServiceListingService
+}
+
+func NewEventServiceListingHandler(r *gin.RouterGroup, svc *service.EventServiceListingService, authMW gin.HandlerFunc) {
+	h := &EventServiceListingHandler{svc: svc}
+
+	// Public: view event services
+	public := r.Group("/events")
+	public.GET("/:id/service-listings", h.ListByEvent)
+
+	// Private: manage event services and schedules
+	private := r.Group("")
+	private.Use(authMW)
+	private.POST("/events/:id/service-listings", h.CreateListing)
+	private.POST("/service-schedules", h.CreateSchedule)
+	private.GET("/service-schedules/:provider_id", h.ListSchedules)
+}
+
+type createListingRequest struct {
+	ServiceProviderID uuid.UUID `json:"service_provider_id" binding:"required"`
+	Price             float64   `json:"price" binding:"required,gt=0"`
+	Description       string    `json:"description" binding:"required"`
+}
+
+func (h *EventServiceListingHandler) CreateListing(c *gin.Context) {
+	var req createListingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		BadRequest(c, "invalid request: "+err.Error())
+		return
+	}
+
+	eventID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		BadRequest(c, "invalid event ID")
+		return
+	}
+
+	listing, err := h.svc.CreateListing(c.Request.Context(), service.CreateListingInput{
+		EventID:           eventID,
+		ServiceProviderID: req.ServiceProviderID,
+		Price:             req.Price,
+		Description:       req.Description,
+	})
+	if err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
+	Success(c, listing)
+}
+
+func (h *EventServiceListingHandler) ListByEvent(c *gin.Context) {
+	eventID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		BadRequest(c, "invalid event ID")
+		return
+	}
+
+	listings, err := h.svc.ListByEvent(c.Request.Context(), eventID)
+	if err != nil {
+		InternalError(c, "failed to list event services")
+		return
+	}
+	Success(c, listings)
+}
+
+type createScheduleRequest struct {
+	ServiceProviderID uuid.UUID  `json:"service_provider_id" binding:"required"`
+	EventID           *uuid.UUID `json:"event_id"`
+	Date              string     `json:"date" binding:"required"`
+	StartTime         *string    `json:"start_time"`
+	EndTime           *string    `json:"end_time"`
+	Status            string     `json:"status"`
+	Notes             string     `json:"notes"`
+}
+
+func (h *EventServiceListingHandler) CreateSchedule(c *gin.Context) {
+	var req createScheduleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		BadRequest(c, "invalid request: "+err.Error())
+		return
+	}
+
+	schedule, err := h.svc.CreateSchedule(c.Request.Context(), service.CreateScheduleInput{
+		ServiceProviderID: req.ServiceProviderID,
+		EventID:           req.EventID,
+		Date:              req.Date,
+		StartTime:         req.StartTime,
+		EndTime:           req.EndTime,
+		Status:            req.Status,
+		Notes:             req.Notes,
+	})
+	if err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
+	Success(c, schedule)
+}
+
+func (h *EventServiceListingHandler) ListSchedules(c *gin.Context) {
+	providerID, err := uuid.Parse(c.Param("provider_id"))
+	if err != nil {
+		BadRequest(c, "invalid provider ID")
+		return
+	}
+
+	var eventID *uuid.UUID
+	if eid := c.Query("event_id"); eid != "" {
+		if parsed, err := uuid.Parse(eid); err == nil {
+			eventID = &parsed
+		}
+	}
+
+	schedules, err := h.svc.ListSchedules(c.Request.Context(), providerID, eventID)
+	if err != nil {
+		InternalError(c, "failed to list schedules")
+		return
+	}
+	Success(c, schedules)
 }

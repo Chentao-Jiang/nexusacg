@@ -119,6 +119,8 @@ func main() {
 	}
 	paymentSvc := payment.NewCallbackService(db, wechatClient, alipaySign)
 	profitShareSvc := service.NewProfitShareService(db, cfg.PlatformFeePercent, paymentSvc)
+	certificationSvc := service.NewCertificationService(db)
+	eventListingSvc := service.NewEventServiceListingService(db)
 
 	// Router
 	r := gin.Default()
@@ -170,6 +172,8 @@ func main() {
 	handler.NewPaymentHandler(v1, paymentSvc, authMW, cfg.BaseURL+"/api/v1/payments/alipay/callback", cfg.Env)
 	handler.NewUploadHandler(v1, store, authMW, middleware.RequireAdmin())
 	handler.NewAdminHandler(v1, adminSvc, authMW, middleware.RequireAdmin())
+	handler.NewCertificationHandler(v1, certificationSvc, authMW, db)
+	handler.NewEventServiceListingHandler(v1, eventListingSvc, authMW)
 
 	// Order timeout cron: cancel pending orders after configured timeout
 	if cfg.OrderTimeoutMinutes > 0 {
