@@ -39,6 +39,13 @@ type Config struct {
 	// AI Content Moderation
 	DeepSeekAPIKey  string // DeepSeek API key for text moderation (V4 Flash)
 	QwenAPIKey      string // Qwen API key for image/video moderation (Qwen3-VL-flash, DashScope)
+	// SMTP for email verification
+	SMTPHost     string // SMTP server host (e.g. smtp.qiye.aliyun.com)
+	SMTPPort     int    // SMTP server port (e.g. 465 for SSL)
+	SMTPUser     string // SMTP auth username
+	SMTPPassword string // SMTP auth password
+	SMTPFromName string // Display name in From header (e.g. "次元链")
+	SMTPFromEmail string // From email address (e.g. noreply@example.com)
 	// SMS (Aliyun)
 	SMSAccessKeyID     string // Aliyun AccessKey ID for SMS
 	SMSAccessKeySecret string // Aliyun AccessKey Secret for SMS
@@ -88,6 +95,12 @@ func Load() *Config {
 		SMSSignName:          getEnv("SMS_SIGN_NAME", ""),
 		SMSTemplateCode:      getEnv("SMS_TEMPLATE_CODE", ""),
 		SMSAuthSchemeName:    getEnv("SMS_AUTH_SCHEME_NAME", ""),
+		SMTPHost:             getEnv("SMTP_HOST", ""),
+		SMTPPort:             func() int { v := 465; fmt.Sscanf(getEnv("SMTP_PORT", "465"), "%d", &v); return v }(),
+		SMTPUser:             getEnv("SMTP_USER", ""),
+		SMTPPassword:         getEnv("SMTP_PASSWORD", ""),
+		SMTPFromName:         getEnv("SMTP_FROM_NAME", "次元链"),
+		SMTPFromEmail:        getEnv("SMTP_FROM_EMAIL", ""),
 		OrderTimeoutMinutes:  func() int { v := 0; fmt.Sscanf(getEnv("ORDER_TIMEOUT_MINUTES", "30"), "%d", &v); return v }(),
 		PlatformFeePercent:   func() float64 { v := 0.05; fmt.Sscanf(getEnv("PLATFORM_FEE_PERCENT", "0.05"), "%f", &v); return v }(),
 		AutoReleaseDays:      func() int { v := 7; fmt.Sscanf(getEnv("AUTO_RELEASE_DAYS", "7"), "%d", &v); return v }(),
@@ -105,8 +118,9 @@ func Load() *Config {
 }
 
 func (c *Config) DSN() string {
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=require TimeZone=Asia/Shanghai",
-		c.DBHost, c.DBPort, c.DBUser, c.DBPassword, c.DBName)
+	sslMode := getEnv("DB_SSLMODE", "require")
+	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=Asia/Shanghai",
+		c.DBHost, c.DBPort, c.DBUser, c.DBPassword, c.DBName, sslMode)
 }
 
 func (c *Config) RedisAddr() string {

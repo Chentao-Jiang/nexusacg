@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:nexusacg/presentation/screens/home/home_screen.dart';
+import 'package:nexusacg/presentation/screens/products/product_screen.dart';
 
 // Home screen implementation with product zones, featured events, and community feed
 class HomeScreen extends StatelessWidget {
@@ -48,9 +48,9 @@ class HomeScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: [
-                    _zoneCard(context, 'Cosplay专区', Icons.costume, const Color(0xFF6366F1)),
+                    _zoneCard(context, 'Cosplay专区', Icons.masks, const Color(0xFF6366F1), 0),
                     const SizedBox(width: 12),
-                    _zoneCard(context, '周边专区', Icons.shopping_cart, const Color(0xFFEC4899)),
+                    _zoneCard(context, '周边专区', Icons.shopping_cart, const Color(0xFFEC4899), 1),
                   ],
                 ),
               ),
@@ -92,10 +92,15 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _zoneCard(BuildContext context, String title, IconData icon, Color color) {
+  Widget _zoneCard(BuildContext context, String title, IconData icon, Color color, int tabIndex) {
     return Expanded(
       child: InkWell(
-        onTap: () {},
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => ProductScreen(initialTabIndex: tabIndex)),
+          );
+        },
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.all(20),

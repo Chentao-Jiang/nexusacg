@@ -12,7 +12,7 @@ import (
 )
 
 // ContentModerationService handles AI-based content moderation for posts and products.
-// Uses DeepSeek V4 Flash for text moderation and Qwen3-VL-flash for image/video moderation.
+// Uses DeepSeek V4 Flash for text moderation and Qwen3.5-Flash for image/video moderation.
 type ContentModerationService struct {
 	deepseekAPIKey string
 	qwenAPIKey     string
@@ -54,13 +54,15 @@ func (s *ContentModerationService) ModerateImage(ctx context.Context, imageURL s
 // Falls back to pass-by-default when API key is not configured.
 func (s *ContentModerationService) ModerateVideo(ctx context.Context, videoURL string) (*ModerationResult, error) {
 	if s.qwenAPIKey == "" {
+		log.Printf("moderation: video fallback (no Qwen API key), passing: %s", videoURL)
 		return &ModerationResult{Pass: true}, nil
 	}
+	log.Printf("moderation: calling Qwen3-VL-flash for video: %s", videoURL)
 	return s.callQwenVLModerationVideo(ctx, videoURL)
 }
 
-// AutoModeratePost checks a post's content and images before publication.
-func (s *ContentModerationService) AutoModeratePost(ctx context.Context, title, content string, images []string) (*ModerationResult, error) {
+// AutoModeratePost checks a post's content, images, and video before publication.
+func (s *ContentModerationService) AutoModeratePost(ctx context.Context, title, content string, images []string, videoURL string) (*ModerationResult, error) {
 	// Check text
 	textResult, err := s.ModerateText(ctx, title+" "+content)
 	if err != nil {
@@ -79,6 +81,16 @@ func (s *ContentModerationService) AutoModeratePost(ctx context.Context, title, 
 		}
 		if !imgResult.Pass {
 			return imgResult, nil
+		}
+	}
+
+	// Check video
+	if videoURL != "" {
+		videoResult, err := s.ModerateVideo(ctx, videoURL)
+		if err != nil {
+			log.Printf("video moderation failed for %s: %v", videoURL, err)
+		} else if !videoResult.Pass {
+			return videoResult, nil
 		}
 	}
 
@@ -160,12 +172,15 @@ func (s *ContentModerationService) callDeepSeekModeration(ctx context.Context, c
 
 // parseDeepSeekJSON extracts moderation result from the LLM's JSON response.
 func parseDeepSeekJSON(raw string) (*ModerationResult, error) {
-	// Try to find JSON object in response
-	idx := strings.Index(raw, "{")
-	if idx == -1 {
+	start := strings.Index(raw, "{")
+	if start == -1 {
 		return &ModerationResult{Pass: true, Reason: "no violations detected"}, nil
 	}
-	jsonStr := raw[idx:]
+	end := strings.LastIndex(raw, "}")
+	if end == -1 || end < start {
+		return &ModerationResult{Pass: true, Reason: "no violations detected"}, nil
+	}
+	jsonStr := raw[start : end+1]
 
 	var parsed struct {
 		Pass       bool     `json:"pass"`
@@ -173,7 +188,6 @@ func parseDeepSeekJSON(raw string) (*ModerationResult, error) {
 		Reason     string   `json:"reason"`
 	}
 	if err := json.Unmarshal([]byte(jsonStr), &parsed); err != nil {
-		// If JSON parsing fails, do keyword filter as fallback
 		log.Printf("failed to parse DeepSeek moderation JSON: %v, raw: %s", err, raw)
 		return &ModerationResult{Pass: true, Reason: "moderation parse error, allowing"}, nil
 	}
@@ -188,11 +202,11 @@ func parseDeepSeekJSON(raw string) (*ModerationResult, error) {
 	return &ModerationResult{Pass: true, Reason: parsed.Reason}, nil
 }
 
-// --- Qwen3-VL-flash image moderation (DashScope OpenAI-compatible API) ---
+// --- Qwen3.5-Flash image moderation (DashScope OpenAI-compatible API) ---
 
 func (s *ContentModerationService) callQwenVLModeration(ctx context.Context, imageURL string) (*ModerationResult, error) {
 	reqBody := map[string]interface{}{
-		"model": "qwen3-vl-flash",
+		"model": "qwen3.5-flash",
 		"messages": []map[string]interface{}{
 			{
 				"role": "system",
@@ -265,10 +279,10 @@ func (s *ContentModerationService) callQwenVLModeration(ctx context.Context, ima
 	return parseQwenJSON(respContent)
 }
 
-// callQwenVLModerationVideo moderates video content using Qwen3-VL-flash.
+// callQwenVLModerationVideo moderates video content using Qwen3.5-Flash.
 func (s *ContentModerationService) callQwenVLModerationVideo(ctx context.Context, videoURL string) (*ModerationResult, error) {
 	reqBody := map[string]interface{}{
-		"model": "qwen3-vl-flash",
+		"model": "qwen3.5-flash",
 		"messages": []map[string]interface{}{
 			{
 				"role": "system",
@@ -338,15 +352,20 @@ func (s *ContentModerationService) callQwenVLModerationVideo(ctx context.Context
 	}
 
 	respContent := result.Choices[0].Message.Content
+	log.Printf("moderation: Qwen video API raw response: %s", respContent)
 	return parseQwenJSON(respContent)
 }
 
 func parseQwenJSON(raw string) (*ModerationResult, error) {
-	idx := strings.Index(raw, "{")
-	if idx == -1 {
+	start := strings.Index(raw, "{")
+	if start == -1 {
 		return &ModerationResult{Pass: true, Reason: "no violations detected"}, nil
 	}
-	jsonStr := raw[idx:]
+	end := strings.LastIndex(raw, "}")
+	if end == -1 || end < start {
+		return &ModerationResult{Pass: true, Reason: "no violations detected"}, nil
+	}
+	jsonStr := raw[start : end+1]
 
 	var parsed struct {
 		Pass       bool     `json:"pass"`

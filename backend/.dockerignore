@@ -18,8 +18,7 @@ coverage.html
 .git
 .gitignore
 
-# Documentation
-docs/
+# Documentation — docs/ kept for swaggo generated code
 README.md
 TASKS.md
 

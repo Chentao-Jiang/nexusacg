@@ -5,6 +5,8 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"log"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -31,8 +33,15 @@ type RegisterInput struct {
 	Nickname string `json:"nickname"`
 }
 
-func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*model.User, error) {
-	// Check if phone or email already exists
+// RegisterResult wraps the created user and indicates whether email verification is pending.
+type RegisterResult struct {
+	User       *model.User
+	NeedVerify bool
+}
+
+func (s *AuthService) Register(ctx context.Context, input RegisterInput, emailSvc *EmailService) (*RegisterResult, error) {
+	isEmailReg := input.Email != "" && input.Phone == ""
+
 	var count int64
 	if input.Phone != "" {
 		s.db.Model(&model.User{}).Where("phone = ?", input.Phone).Count(&count)
@@ -53,12 +62,17 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*model
 	}
 	hashStr := string(hash)
 
+	status := "active"
+	if isEmailReg {
+		status = "pending_email"
+	}
+
 	user := model.User{
 		ID:           uuid.New(),
 		Nickname:     input.Nickname,
 		PasswordHash: &hashStr,
 		Role:         "user",
-		Status:       "active",
+		Status:       status,
 	}
 
 	if input.Phone != "" {
@@ -69,10 +83,25 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*model
 	}
 
 	if err := s.db.Create(&user).Error; err != nil {
+		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "unique") {
+			if input.Phone != "" {
+				return nil, fmt.Errorf("phone already registered")
+			}
+			return nil, fmt.Errorf("email already registered")
+		}
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
-	return &user, nil
+	if isEmailReg && emailSvc != nil {
+		token, err := emailSvc.GenerateToken(user.ID)
+		if err != nil {
+			log.Printf("failed to generate email verification token for user %s: %v", user.ID, err)
+		} else if err := emailSvc.SendVerificationEmail(input.Email, token); err != nil {
+			log.Printf("failed to send verification email to %s: %v", input.Email, err)
+		}
+	}
+
+	return &RegisterResult{User: &user, NeedVerify: isEmailReg}, nil
 }
 
 type LoginInput struct {
@@ -141,6 +170,14 @@ func (s *AuthService) WeChatOAuthLogin(ctx context.Context, wechat *WeChatOAuthS
 }
 
 func (s *AuthService) Login(ctx context.Context, input LoginInput) (*TokenPair, error) {
+	// First check if user exists with pending_email status (for better error message)
+	if input.Email != "" {
+		var pendingUser model.User
+		if err := s.db.Where("email = ? AND status = ?", input.Email, "pending_email").First(&pendingUser).Error; err == nil {
+			return nil, fmt.Errorf("邮箱未验证，请先查收验证邮件完成激活")
+		}
+	}
+
 	var user model.User
 	query := s.db.Where("status = ?", "active")
 	if input.Phone != "" {

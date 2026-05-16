@@ -80,4 +80,18 @@ class ApiClient {
     if (data['url'] != null) return data['url'] as String;
     return null;
   }
+
+  Future<String?> uploadImage(File file) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(file.path),
+    });
+    final response = await _dio.post(
+      '/upload/image',
+      data: formData,
+      options: Options(headers: {'Content-Type': 'multipart/form-data'}),
+    );
+    final data = response.data;
+    if (data['url'] != null) return data['url'] as String;
+    return null;
+  }
 }

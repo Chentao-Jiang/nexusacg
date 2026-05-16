@@ -219,3 +219,14 @@ type ProfitShareRecord struct {
 }
 
 func (ProfitShareRecord) TableName() string { return "profit_share_records" }
+
+// EmailVerificationToken stores email verification tokens (24h TTL).
+type EmailVerificationToken struct {
+	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	UserID    uuid.UUID `json:"user_id" gorm:"type:uuid;uniqueIndex"`
+	Token     string    `json:"-" gorm:"uniqueIndex"`
+	ExpiresAt time.Time `json:"expires_at"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (EmailVerificationToken) TableName() string { return "email_verification_tokens" }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"log"
 	"net/http"
 	"os"
@@ -23,6 +24,12 @@ import (
 	"github.com/planforever/nexusacg/internal/storage"
 )
 
+//go:embed static/verify.html
+var verifyHTML string
+
+//go:embed static/login.html
+var loginHTML string
+
 func main() {
 	cfg := config.Load()
 	db := database.Connect(cfg)
@@ -31,6 +38,12 @@ func main() {
 
 	// Services
 	authSvc := service.NewAuthService(db, cfg)
+	emailSvc := service.NewEmailService(db, cfg)
+	if emailSvc.IsConfigured() {
+		log.Println("email service initialized with SMTP")
+	} else {
+		log.Println("email service in dev mode (no SMTP configured)")
+	}
 	smsSvc := service.NewSMSService(cfg)
 	productSvc := service.NewProductService(db)
 	categorySvc := service.NewCategoryService(db)
@@ -122,6 +135,21 @@ func main() {
 	// Serve uploaded files
 	r.Static("/uploads", "./uploads")
 
+	// Verify page (embedded in binary)
+	r.GET("/verify", func(c *gin.Context) {
+		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(verifyHTML))
+	})
+
+	// Root redirect to login page
+	r.GET("/", func(c *gin.Context) {
+		c.Redirect(http.StatusFound, "/login")
+	})
+
+	// Login landing page (embedded in binary)
+	r.GET("/login", func(c *gin.Context) {
+		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(loginHTML))
+	})
+
 	// robots.txt to discourage search engine indexing
 	r.GET("/robots.txt", func(c *gin.Context) {
 		c.String(http.StatusOK, "User-agent: *\nDisallow: /uploads/\n")
@@ -134,7 +162,7 @@ func main() {
 
 	// API v1
 	v1 := r.Group("/api/v1")
-	handler.NewAuthHandler(v1, authSvc, smsSvc, wechatOauth, qqOauth, cfg)
+	handler.NewAuthHandler(v1, authSvc, smsSvc, emailSvc, wechatOauth, qqOauth, cfg)
 	handler.NewProductHandler(v1, productSvc, categorySvc, authMW)
 	handler.NewPostHandler(v1, postSvc, authMW, moderationSvc)
 	handler.NewEventHandler(v1, eventSvc, authMW)

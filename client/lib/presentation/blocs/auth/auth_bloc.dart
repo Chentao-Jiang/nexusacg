@@ -11,6 +11,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthLoginRequested>(_onLogin);
     on<AuthRegisterRequested>(_onRegister);
     on<AuthLogoutRequested>(_onLogout);
+    on<AuthTokenRestored>(_onTokenRestored);
   }
 
   Future<void> _onLogin(AuthLoginRequested event, Emitter<AuthState> emit) async {
@@ -24,8 +25,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       if (result['code'] == 0 && result['data'] != null) {
         final token = result['data']['access_token'] as String;
+        final user = result['data']['user'] != null
+            ? UserModel.fromJson(result['data']['user'])
+            : UserModel(id: '', nickname: '用户', role: 'user');
         ApiClient().accessToken = token;
-        emit(AuthUnauthenticated()); // Navigate to login success -> main
+        emit(AuthAuthenticated(user: user, accessToken: token));
       } else {
         emit(AuthError(result['message'] as String? ?? '登录失败'));
       }
@@ -58,6 +62,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     ApiClient().accessToken = null;
     emit(AuthUnauthenticated());
   }
+
+  Future<void> _onTokenRestored(AuthTokenRestored event, Emitter<AuthState> emit) async {
+    emit(AuthLoading());
+    try {
+      final result = await _repo.getCurrentUser();
+      if (result['code'] == 0 && result['data'] != null) {
+        final user = UserModel.fromJson(result['data']);
+        emit(AuthAuthenticated(user: user, accessToken: event.token));
+      } else {
+        emit(AuthUnauthenticated());
+      }
+    } catch (e) {
+      emit(AuthUnauthenticated());
+    }
+  }
 }
 
 sealed class AuthEvent {}
@@ -75,3 +94,7 @@ class AuthRegisterRequested extends AuthEvent {
   AuthRegisterRequested({required this.nickname, required this.password, this.phone, this.email});
 }
 class AuthLogoutRequested extends AuthEvent {}
+class AuthTokenRestored extends AuthEvent {
+  final String token;
+  AuthTokenRestored(this.token);
+}

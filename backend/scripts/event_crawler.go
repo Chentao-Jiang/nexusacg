@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -129,7 +128,6 @@ func crawlACG17Events() ([]Event, error) {
 
 	doc.Find("article, .post").Each(func(i int, s *goquery.Selection) {
 		title := s.Find("h2 a, h1 a, .title").Text()
-		link, _ := s.Find("h2 a, h1 a, .title a").Attr("href")
 		content := s.Find(".entry-content, .content").Text()
 		if title != "" && (strings.Contains(title, "漫展") || strings.Contains(title, "活动") || strings.Contains(title, "ONLY")) {
 			events = append(events, Event{

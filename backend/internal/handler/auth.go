@@ -13,13 +13,14 @@ import (
 type AuthHandler struct {
 	svc         *service.AuthService
 	smsSvc      *service.SMSService
+	emailSvc    *service.EmailService
 	wechatOauth *service.WeChatOAuthService
 	qqOauth     *service.QQOAuthService
 	cfg         *config.Config
 }
 
-func NewAuthHandler(r *gin.RouterGroup, svc *service.AuthService, smsSvc *service.SMSService, wechatOauth *service.WeChatOAuthService, qqOauth *service.QQOAuthService, cfg *config.Config) {
-	h := &AuthHandler{svc: svc, smsSvc: smsSvc, wechatOauth: wechatOauth, qqOauth: qqOauth, cfg: cfg}
+func NewAuthHandler(r *gin.RouterGroup, svc *service.AuthService, smsSvc *service.SMSService, emailSvc *service.EmailService, wechatOauth *service.WeChatOAuthService, qqOauth *service.QQOAuthService, cfg *config.Config) {
+	h := &AuthHandler{svc: svc, smsSvc: smsSvc, emailSvc: emailSvc, wechatOauth: wechatOauth, qqOauth: qqOauth, cfg: cfg}
 
 	auth := r.Group("/auth")
 	auth.Use(middleware.AuthRateLimit())
@@ -28,6 +29,9 @@ func NewAuthHandler(r *gin.RouterGroup, svc *service.AuthService, smsSvc *servic
 	auth.POST("/refresh", h.Refresh)
 	auth.POST("/sms/send", h.SMSSendCode)
 	auth.POST("/sms/login", h.SMSLogin)
+	auth.GET("/email/verify", h.VerifyEmail)
+	auth.GET("/email/verify-token", h.VerifyEmailAPI)
+	auth.POST("/email/resend", h.ResendEmailVerification)
 	// WeChat OAuth routes — moderate rate limit to prevent abuse
 	wechat := auth.Group("/wechat")
 	wechat.Use(middleware.RateLimit())
@@ -69,18 +73,27 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	user, err := h.svc.Register(c.Request.Context(), service.RegisterInput{
+	result, err := h.svc.Register(c.Request.Context(), service.RegisterInput{
 		Phone:    req.Phone,
 		Email:    req.Email,
 		Password: req.Password,
 		Nickname: req.Nickname,
-	})
+	}, h.emailSvc)
 	if err != nil {
 		BadRequest(c, safeErrorMessage(err))
 		return
 	}
 
-	Success(c, user)
+	if result.NeedVerify {
+		Success(c, gin.H{
+			"message":     "注册成功，请查收验证邮件",
+			"user":        result.User,
+			"need_verify": true,
+		})
+		return
+	}
+
+	Success(c, result.User)
 }
 
 type LoginRequest struct {
@@ -254,6 +267,111 @@ func (h *AuthHandler) SMSLogin(c *gin.Context) {
 	}
 
 	Success(c, tokens)
+}
+
+// VerifyEmail godoc
+// @Summary Verify email address
+// @Description Verify email via token from the registration email. Activates the account.
+// @Tags auth
+// @Produce json
+// @Param token query string true "Verification token"
+// @Success 200 {object} Response
+// @Failure 400 {object} Response
+// @Router /auth/email/verify [get]
+func (h *AuthHandler) VerifyEmail(c *gin.Context) {
+	token := c.Query("token")
+	if token == "" {
+		if isBrowser(c) {
+			c.Redirect(http.StatusFound, "/verify?error=missing_token")
+			return
+		}
+		BadRequest(c, "missing verification token")
+		return
+	}
+
+	if h.emailSvc == nil {
+		if isBrowser(c) {
+			c.Redirect(http.StatusFound, "/verify?error=not_configured")
+			return
+		}
+		BadRequest(c, "email service not configured")
+		return
+	}
+
+	user, err := h.emailSvc.VerifyToken(token)
+	if err != nil {
+		if isBrowser(c) {
+			c.Redirect(http.StatusFound, "/verify?error=invalid_token")
+			return
+		}
+		BadRequest(c, err.Error())
+		return
+	}
+
+	if isBrowser(c) {
+		c.Redirect(http.StatusFound, "/verify?token="+token)
+		return
+	}
+	Success(c, gin.H{"message": "邮箱验证成功，账号已激活", "user": user})
+}
+
+// VerifyEmailAPI — pure JSON endpoint (for HTML verify page JS)
+func (h *AuthHandler) VerifyEmailAPI(c *gin.Context) {
+	token := c.Query("token")
+	if token == "" {
+		BadRequest(c, "missing verification token")
+		return
+	}
+	if h.emailSvc == nil {
+		BadRequest(c, "email service not configured")
+		return
+	}
+	user, err := h.emailSvc.VerifyToken(token)
+	if err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
+	Success(c, gin.H{"message": "邮箱验证成功，账号已激活", "user": user})
+}
+
+func isBrowser(c *gin.Context) bool {
+	accept := c.GetHeader("Accept")
+	return strings.Contains(accept, "text/html")
+}
+
+// ResendEmailVerification godoc
+// @Summary Resend email verification
+// @Description Resend verification email to a pending registration.
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body ResendEmailRequest true "Email address"
+// @Success 200 {object} Response
+// @Failure 400 {object} Response
+// @Router /auth/email/resend [post]
+func (h *AuthHandler) ResendEmailVerification(c *gin.Context) {
+	if h.emailSvc == nil {
+		BadRequest(c, "email service not configured")
+		return
+	}
+
+	var req ResendEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		BadRequest(c, "invalid request: "+err.Error())
+		return
+	}
+
+	_, err := h.emailSvc.ResendToken(req.Email)
+	if err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
+
+	Success(c, gin.H{"message": "验证邮件已重新发送"})
+}
+
+type ResendEmailRequest struct {
+	Email string `json:"email" binding:"required,email"`
 }
 
 type WeChatAuthorizeResponse struct {

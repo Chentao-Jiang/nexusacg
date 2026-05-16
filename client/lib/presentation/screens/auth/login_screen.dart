@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nexusacg/presentation/blocs/auth/auth_bloc.dart';
 import 'package:nexusacg/presentation/blocs/auth/auth_state.dart';
+import 'package:nexusacg/presentation/screens/auth/email_register_screen.dart';
 import 'package:nexusacg/presentation/screens/auth/register_screen.dart';
+import 'package:nexusacg/presentation/screens/auth/qq_oauth_screen.dart';
+import 'package:nexusacg/core/repositories/repositories.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -30,6 +33,28 @@ class _LoginScreenState extends State<LoginScreen> {
       phone: _phoneCtrl.text.trim(),
       password: _passwordCtrl.text,
     ));
+  }
+
+  Future<void> _handleQQLogin() async {
+    try {
+      final authUrl = await AuthRepository().getQQAuthUrl();
+      if (authUrl != null && mounted) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => QQOAuthLoginScreen(authUrl: authUrl)),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('QQ 登录未配置，请联系管理员')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('获取 QQ 授权链接失败: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -96,7 +121,30 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 16),
                         TextButton(
                           onPressed: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
+                            showModalBottomSheet(
+                              context: context,
+                              builder: (_) => Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ListTile(
+                                    leading: const Icon(Icons.email),
+                                    title: const Text('邮箱注册'),
+                                    onTap: () {
+                                      Navigator.pop(context);
+                                      Navigator.push(context, MaterialPageRoute(builder: (_) => const EmailRegisterScreen()));
+                                    },
+                                  ),
+                                  ListTile(
+                                    leading: const Icon(Icons.phone),
+                                    title: const Text('手机注册'),
+                                    onTap: () {
+                                      Navigator.pop(context);
+                                      Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
+                                    },
+                                  ),
+                                ],
+                              ),
+                            );
                           },
                           child: const Text('还没有账号？立即注册'),
                         ),
@@ -106,7 +154,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           children: [
                             _socialButton(Icons.chat, '微信登录', () {}),
                             const SizedBox(width: 16),
-                            _socialButton(Icons.person, 'QQ登录', () {}),
+                            _socialButton(Icons.person, 'QQ登录', _handleQQLogin),
                           ],
                         ),
                       ],

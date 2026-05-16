@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:nexusacg/core/models/models.dart';
 import 'package:nexusacg/core/repositories/repositories.dart';
 import 'package:nexusacg/presentation/screens/community/post_detail_screen.dart';
+import 'package:nexusacg/presentation/screens/community/post_create_screen.dart';
 
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
@@ -27,10 +28,10 @@ class _CommunityScreenState extends State<CommunityScreen> {
   Future<void> _loadPosts() async {
     setState(() => _loading = true);
     try {
-      final result = await _repo.getPosts(page: _page);
+      final posts = await _repo.getPosts(page: _page);
       setState(() {
-        _posts = result.items;
-        _hasMore = result.items.length >= 20;
+        _posts = posts;
+        _hasMore = posts.length >= 20;
         _loading = false;
       });
     } catch (e) {
@@ -47,11 +48,11 @@ class _CommunityScreenState extends State<CommunityScreen> {
     if (!_hasMore) return;
     final nextPage = _page + 1;
     try {
-      final result = await _repo.getPosts(page: nextPage);
+      final posts = await _repo.getPosts(page: nextPage);
       setState(() {
-        _posts.addAll(result.items);
+        _posts.addAll(posts);
         _page = nextPage;
-        _hasMore = result.items.length >= 20;
+        _hasMore = posts.length >= 20;
       });
     } catch (e) {
       // Ignore load more errors
@@ -96,9 +97,10 @@ class _CommunityScreenState extends State<CommunityScreen> {
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('发帖功能开发中')),
-          );
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const PostCreateScreen()),
+          ).then((_) => _loadPosts()); // Refresh after post
         },
         child: const Icon(Icons.edit),
       ),

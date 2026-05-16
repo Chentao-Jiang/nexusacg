@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:nexusacg/core/models/models.dart';
 import 'package:nexusacg/core/repositories/repositories.dart';
 import 'package:video_player/video_player.dart';
+import 'package:nexusacg/presentation/screens/community/comments_screen.dart';
 
 class PostDetailScreen extends StatefulWidget {
   final PostModel post;
@@ -159,8 +160,14 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     '${widget.post.commentCount}',
                     Colors.grey,
                     () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('评论功能开发中')),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CommentsScreen(
+                            postId: widget.post.id,
+                            initialCount: widget.post.commentCount,
+                          ),
+                        ),
                       );
                     },
                   ),
@@ -169,11 +176,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     Icons.share,
                     '分享',
                     Colors.grey,
-                    () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('分享功能开发中')),
-                      );
-                    },
+                    () {},
                   ),
                 ],
               ),

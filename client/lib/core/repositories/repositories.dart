@@ -61,6 +61,22 @@ class PostRepository {
   Future<void> unlikePost(String postId) async {
     await _api.delete('/posts/$postId/like');
   }
+
+  Future<Map<String, dynamic>?> createPost({
+    required String title,
+    required String content,
+    List<String> images = const [],
+    String? videoUrl,
+    List<String> tags = const [],
+  }) async {
+    final body = <String, dynamic>{'content': content};
+    if (title.isNotEmpty) body['title'] = title;
+    if (images.isNotEmpty) body['images'] = images;
+    if (videoUrl != null) body['video_url'] = videoUrl;
+    if (tags.isNotEmpty) body['tags'] = tags;
+    final response = await _api.post('/posts', data: body);
+    return response.data;
+  }
 }
 
 class EventRepository {
@@ -84,7 +100,7 @@ class EventRepository {
         total: total,
       );
     }
-    return (items: [], total: 0);
+    return (items: <EventModel>[], total: 0);
   }
 
   Future<EventModel?> getEvent(String id) async {
@@ -154,5 +170,131 @@ class AuthRepository {
 
     final response = await _api.post('/auth/login', data: body);
     return response.data;
+  }
+
+  Future<Map<String, dynamic>> getCurrentUser() async {
+    final response = await _api.post('/auth/me');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> updateProfile({String? nickname, String? bio, String? avatarUrl}) async {
+    final body = <String, dynamic>{};
+    if (nickname != null) body['nickname'] = nickname;
+    if (bio != null) body['bio'] = bio;
+    if (avatarUrl != null) body['avatar_url'] = avatarUrl;
+    final response = await _api.post('/auth/profile', data: body);
+    return response.data;
+  }
+
+  Future<String?> getQQAuthUrl() async {
+    final response = await _api.get('/auth/qq/authorize');
+    final data = response.data;
+    if (data['code'] == 0 && data['data'] != null) {
+      return data['data']['redirect_url'] as String?;
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> qqCallback(String code) async {
+    final response = await _api.get('/auth/qq/callback', queryParameters: {'code': code});
+    return response.data;
+  }
+}
+
+class OrderRepository {
+  final ApiClient _api = ApiClient();
+
+  Future<({List<OrderModel> items, int total})> getOrders({
+    int page = 1,
+    int pageSize = 20,
+    String? status,
+  }) async {
+    final params = <String, dynamic>{'page': page, 'page_size': pageSize};
+    if (status != null) params['status'] = status;
+
+    final response = await _api.get('/orders', queryParameters: params);
+    final data = response.data;
+    if (data['code'] == 0 && data['data'] != null) {
+      final items = data['data']['items'] as List;
+      final total = data['data']['total'] as int? ?? 0;
+      return (
+        items: items.map((e) => OrderModel.fromJson(e as Map<String, dynamic>)).toList(),
+        total: total,
+      );
+    }
+    return (items: <OrderModel>[], total: 0);
+  }
+
+  Future<OrderModel?> getOrder(String orderNo) async {
+    final response = await _api.get('/orders/$orderNo');
+    final data = response.data;
+    if (data['code'] == 0 && data['data'] != null) {
+      return OrderModel.fromJson(data['data'] as Map<String, dynamic>);
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>> createOrder(List<({String productId, int quantity})> items) async {
+    final body = {
+      'items': items.map((e) => {'product_id': e.productId, 'quantity': e.quantity}).toList(),
+    };
+    final response = await _api.post('/orders', data: body);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> payOrder(String orderNo, {required String paymentMethod, required String paymentId}) async {
+    final body = {'payment_method': paymentMethod, 'payment_id': paymentId};
+    final response = await _api.post('/orders/$orderNo/pay', data: body);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> cancelOrder(String orderNo) async {
+    final response = await _api.post('/orders/$orderNo/cancel');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> shipOrder(String orderNo) async {
+    final response = await _api.post('/orders/$orderNo/ship');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> confirmReceipt(String orderNo) async {
+    final response = await _api.post('/orders/$orderNo/confirm');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> refundOrder(String orderNo) async {
+    final response = await _api.post('/orders/$orderNo/refund');
+    return response.data;
+  }
+}
+
+class CommentRepository {
+  final ApiClient _api = ApiClient();
+
+  Future<({List<CommentModel> items, int total})> getComments(String postId, {int page = 1, int pageSize = 20}) async {
+    final params = <String, dynamic>{'page': page, 'page_size': pageSize};
+    final response = await _api.get('/posts/$postId/comments', queryParameters: params);
+    final data = response.data;
+    if (data['code'] == 0 && data['data'] != null) {
+      final items = data['data']['items'] as List;
+      final total = data['data']['total'] as int? ?? 0;
+      return (
+        items: items.map((e) => CommentModel.fromJson(e as Map<String, dynamic>)).toList(),
+        total: total,
+      );
+    }
+    return (items: <CommentModel>[], total: 0);
+  }
+
+  Future<CommentModel?> createComment(String postId, String content, {String? parentId}) async {
+    final body = <String, dynamic>{'content': content};
+    if (parentId != null) body['parent_id'] = parentId;
+    final response = await _api.post('/posts/$postId/comments', data: body);
+    final data = response.data;
+    if (data['code'] == 0 && data['data'] != null) {
+      return CommentModel.fromJson(data['data'] as Map<String, dynamic>);
+    }
+    return null;
   }
 }

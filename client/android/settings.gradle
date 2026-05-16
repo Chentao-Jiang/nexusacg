@@ -23,3 +23,14 @@ plugins {
 }
 
 include ":app"
+
+// Force compileSdk 34 for all Flutter plugins (SDK 35 requires JDK jlink)
+gradle.beforeProject { p ->
+    p.afterEvaluate {
+        if (p.plugins.hasPlugin('com.android.library') || p.plugins.hasPlugin('com.android.application')) {
+            if (p.hasProperty('android')) {
+                p.android.compileSdk = 34
+            }
+        }
+    }
+}

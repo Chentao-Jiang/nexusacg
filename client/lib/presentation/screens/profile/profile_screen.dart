@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:nexusacg/presentation/blocs/auth/auth_bloc.dart';
+import 'package:nexusacg/presentation/blocs/auth/auth_state.dart';
+import 'package:nexusacg/presentation/screens/orders/orders_screen.dart';
+import 'package:nexusacg/presentation/screens/settings/settings_screen.dart';
+import 'package:nexusacg/presentation/screens/profile/edit_profile_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -9,66 +14,109 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: ListView(
-          children: [
-            // Profile header
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Theme.of(context).primaryColor,
-                    Theme.of(context).primaryColor.withOpacity(0.7),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+        child: BlocBuilder<AuthBloc, AuthState>(
+          builder: (context, state) {
+            final user = state is AuthAuthenticated ? state.user : null;
+            return ListView(
+              children: [
+                // Profile header
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen()));
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        CircleAvatar(
+                          radius: 40,
+                          backgroundImage: user?.avatarUrl != null
+                              ? CachedNetworkImageProvider(user!.avatarUrl!)
+                              : null,
+                          child: user?.avatarUrl == null
+                              ? const Icon(Icons.person, size: 40, color: Colors.white)
+                              : null,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          user?.nickname ?? '用户',
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          user != null && user.bio.isNotEmpty ? user.bio : 'ACG爱好者',
+                          style: const TextStyle(fontSize: 14, color: Colors.white70),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              child: const Column(
-                children: [
-                  CircleAvatar(radius: 40, child: Icon(Icons.person, size: 40)),
-                  SizedBox(height: 12),
-                  Text('用户昵称', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-                  SizedBox(height: 4),
-                  Text('ACG爱好者', style: TextStyle(fontSize: 14, color: Colors.white70)),
-                ],
-              ),
-            ),
-            // Stats
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  _statItem('帖子', '0'),
-                  _statItem('关注', '0'),
-                  _statItem('粉丝', '0'),
-                ],
-              ),
-            ),
-            const Divider(),
-            // Menu items
-            _menuItem(Icons.shopping_bag, '我的订单'),
-            _menuItem(Icons.favorite, '我的收藏'),
-            _menuItem(Icons.local_offer, '我的商品'),
-            _menuItem(Icons.bookmark, '我的预约'),
-            const Divider(),
-            _menuItem(Icons.store, '我要入驻', subtitle: '妆娘/摄影师/摊主'),
-            _menuItem(Icons.settings, '设置'),
-            _menuItem(Icons.help_outline, '帮助与反馈'),
-            const Divider(),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: OutlinedButton(
-                onPressed: () {
-                  context.read<AuthBloc>().add(AuthLogoutRequested());
-                },
-                child: const Text('退出登录'),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Center(child: Text('次元链 v0.1.0', style: TextStyle(color: Colors.grey, fontSize: 12))),
-            const SizedBox(height: 24),
-          ],
+                // Stats
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      _statItem('帖子', '0'),
+                      _statItem('关注', '0'),
+                      _statItem('粉丝', '0'),
+                    ],
+                  ),
+                ),
+                const Divider(),
+                // Quick actions - order status shortcuts
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _quickAction(context, Icons.pending_actions, '待付款', 'pending'),
+                      _quickAction(context, Icons.local_shipping, '待收货', 'shipped'),
+                      _quickAction(context, Icons.check_circle, '已完成', 'completed'),
+                      _quickAction(context, Icons.receipt_long, '退款', 'refunded'),
+                    ],
+                  ),
+                ),
+                const Divider(),
+                // Menu items
+                _menuItem(Icons.shopping_bag, '我的订单', onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const OrdersScreen()));
+                }),
+                _menuItem(Icons.favorite, '我的收藏'),
+                _menuItem(Icons.local_offer, '我的商品'),
+                _menuItem(Icons.bookmark, '我的预约'),
+                const Divider(),
+                _menuItem(Icons.store, '我要入驻', subtitle: '妆娘/摄影师/摊主'),
+                _menuItem(Icons.settings, '设置', onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+                }),
+                _menuItem(Icons.help_outline, '帮助与反馈'),
+                const Divider(),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: OutlinedButton(
+                    onPressed: () {
+                      context.read<AuthBloc>().add(AuthLogoutRequested());
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.error,
+                      side: BorderSide(color: Theme.of(context).colorScheme.error),
+                    ),
+                    child: const Text('退出登录'),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Center(child: Text('次元链 v0.1.0', style: TextStyle(color: Colors.grey, fontSize: 12))),
+                const SizedBox(height: 24),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -86,13 +134,28 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _menuItem(IconData icon, String title, {String? subtitle}) {
+  Widget _quickAction(BuildContext context, IconData icon, String label, String status) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const OrdersScreen()));
+      },
+      child: Column(
+        children: [
+          Icon(icon, size: 28),
+          const SizedBox(height: 4),
+          Text(label, style: const TextStyle(fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  Widget _menuItem(IconData icon, String title, {String? subtitle, VoidCallback? onTap}) {
     return ListTile(
       leading: Icon(icon),
       title: Text(title),
       subtitle: subtitle != null ? Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)) : null,
       trailing: const Icon(Icons.chevron_right, size: 16),
-      onTap: () {},
+      onTap: onTap ?? () {},
     );
   }
 }

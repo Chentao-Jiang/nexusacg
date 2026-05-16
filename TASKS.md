@@ -18,7 +18,7 @@
 - [x] CORS 中间件 (`internal/middleware/auth.go`)
 - [x] 手机号 + 短信验证码登录 (`internal/service/sms.go` + `internal/handler/auth.go`) — 阿里云 SMS API + dev 模式 fallback，速率限制 1次/分钟 + 5次/天
 - [x] 微信 OAuth 登录 (`internal/service/wechat_oauth.go` + `internal/handler/auth.go`) — 授权码流程 + 自动注册，需 WECHAT_OAUTH_APP_ID/SECRET
-- [ ] QQ OAuth 登录
+- [x] QQ OAuth 登录（Flutter 客户端 WebView 内嵌授权流程）
 
 ### 1.2 商品模块 [COMPLETED]
 - [x] 商品 CRUD + 列表查询 (`internal/service/product.go`) — 7 个集成测试通过
@@ -69,7 +69,7 @@
 - [x] 集成测试 9/9 通过 (`alipay_test.go` + `callback_test.go`)
 - [x] 支付宝沙箱完整流程（SDK 签名验证 + 订单字符串生成 + 回调解析，sandbox AppID `2021006153686187`）
 - [ ] 微信商户号注册 + 真实沙箱测试（需企业注册）
-- [ ] 担保交易/分账系统（确认收货后分账）
+- [x] 担保交易/分账系统（确认收货后分账，PLATFORM_FEE_PERCENT 默认 5%，AUTO_RELEASE_DAYS 默认 7 天）
 - [x] 订单超时自动取消 cron 部署（每 5 分钟 ticker，ORDER_TIMEOUT_MINUTES 环境变量配置）
 
 ### 1.7 基础设施 [COMPLETED]
@@ -98,16 +98,16 @@
 - [x] 数据统计看板（GetDashboardStats：用户/商品/订单/帖子/收入统计）
 
 ### 1.10 Flutter 客户端 [NOT STARTED]
-- [ ] 项目初始化 + 路由
-- [ ] 登录/注册页面
-- [ ] 商品列表 + 详情页面
-- [ ] 商品双区切换
-- [ ] 帖子列表 + 详情 + 发布
-- [ ] 点赞/评论交互
-- [ ] 活动列表页面
-- [ ] 订单列表 + 详情
-- [ ] 支付流程（微信/支付宝 SDK 集成）
-- [ ] 用户个人中心
+- [x] 项目初始化 + 路由
+- [x] 登录/注册页面
+- [x] 商品列表 + 详情页面
+- [x] 商品双区切换
+- [x] 帖子列表 + 详情 + 发布
+- [x] 点赞/评论交互
+- [x] 活动列表页面
+- [x] 订单列表 + 详情
+- [x] 支付流程（微信/支付宝 SDK 集成）
+- [x] 用户个人中心
 
 ---
 
@@ -233,6 +233,40 @@
 ---
 
 ## 新增任务（按需添加）
+
+### [用户反馈] 物流追踪 + 签收后自动确认收货
+- [ ] 接入快递查询 API（快递100 / 菜鸟裹裹），根据 tracking_number + carrier 查询物流轨迹
+- [ ] 订单物流状态实时展示（揽收 → 运输 → 派送 → 签收）
+- [ ] 物流显示"已签收"后启动签收倒计时（默认 7 天，到期自动确认收货）
+- [ ] `AutoReleaseOrders` 改造：优先使用签收时间计算超时，无签收数据时回退到发货时间计算
+- [ ] 物流查询 cron（每 2 小时轮询有物流单号但未签收的订单）
+
+### [用户反馈] 退换货申请流程
+- [ ] RefundApplication 模型（order_id, user_id, refund_type: refund_only/return_refund, reason, evidence_urls, amount, status: pending/seller_review/approved/rejected/completed, created_at, updated_at）
+- [ ] 买家提交退换货申请 API（POST /orders/:order_no/refund-application）— 必填理由、金额，可选上传凭证图片
+- [ ] 商家审核退换货 API（POST /admin/refund-applications/:id/approve、POST /admin/refund-applications/:id/reject）
+- [ ] 退换货申请状态机（pending → seller_review → approved/rejected → completed）
+- [ ] 审核通过后触发退款执行（调用现有 Refund 逻辑 + 库存恢复）
+- [ ] 支持部分退款（按金额而非整单）
+- [ ] 退换货申请列表查询（买家端、商家端、管理端）
+
+### [用户反馈] 纠纷申诉系统
+- [ ] Dispute 模型（order_id, claimant_id, respondent_id, claim_type: quality/counterfeit/not_received/misdescription, description, evidence_urls, status: open/mediating/resolved/closed, resolution: refund/return/partial_refund/none, created_at, updated_at）
+- [ ] 买家发起纠纷申诉 API（POST /disputes）— 必填申诉类型、描述，可选上传凭证
+- [ ] 商家响应纠纷 API（POST /disputes/:id/respond）— 商家回复/提供反证
+- [ ] 平台仲裁 API（POST /admin/disputes/:id/resolve）— 管理员裁决并执行结果
+- [ ] 纠纷状态流转逻辑 + 超时自动升级（商家 N 天不响应 → 平台自动介入）
+- [ ] 纠纷列表查询（买家端、商家端、管理端）
+- [ ] 纠纷记录关联到商家信用（影响信用评分）
+
+### [用户反馈] 商家信用体系 + 推荐优先级
+- [ ] SellerRating 模型（seller_id, buyer_id, order_id, rating: 1-5, comment, created_at）— 买家对订单卖家评分
+- [ ] 订单完成后可评价卖家 API（POST /orders/:order_no/rate）
+- [ ] 商家信用分聚合（平均评分、评价数量、纠纷率）— 实时或定时计算
+- [ ] User/Product 模型关联信用字段（seller_rating, seller_review_count）
+- [ ] 商品搜索/列表排序新增信用算法（popular 模式融入信用加权）
+- [ ] 商家信用展示（商品详情页展示卖家信用、店铺入口）
+- [ ] 低信用商家限制（评分低于阈值时降权展示或禁止上架新商品）
 
 <!-- 新功能需求在此追加，格式：
 ### [需求来源] 功能名称

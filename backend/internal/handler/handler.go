@@ -350,7 +350,11 @@ func (h *PostHandler) Create(c *gin.Context) {
 
 	// Auto-moderate content before creation
 	if h.mod != nil {
-		result, err := h.mod.AutoModeratePost(c.Request.Context(), req.Title, req.Content, req.Images)
+		videoURL := ""
+		if req.VideoURL != nil {
+			videoURL = *req.VideoURL
+		}
+		result, err := h.mod.AutoModeratePost(c.Request.Context(), req.Title, req.Content, req.Images, videoURL)
 		if err != nil {
 			log.Printf("content moderation error: %v", err)
 		} else if !result.Pass {

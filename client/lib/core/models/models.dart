@@ -170,3 +170,105 @@ class EventModel {
     );
   }
 }
+
+class OrderItemModel {
+  final String id;
+  final String productId;
+  final int quantity;
+  final double price;
+
+  OrderItemModel({required this.id, required this.productId, required this.quantity, required this.price});
+
+  factory OrderItemModel.fromJson(Map<String, dynamic> json) {
+    return OrderItemModel(
+      id: json['id'] as String,
+      productId: json['product_id'] as String,
+      quantity: json['quantity'] as int? ?? 1,
+      price: (json['price'] as num).toDouble(),
+    );
+  }
+}
+
+class OrderModel {
+  final String id;
+  final String userId;
+  final String orderNo;
+  final double totalAmount;
+  final String? paymentMethod;
+  final String paymentStatus;
+  final String orderStatus;
+  final String? shippingAddress;
+  final String? paymentId;
+  final DateTime? paidAt;
+  final DateTime? shippedAt;
+  final DateTime? completedAt;
+  final DateTime createdAt;
+  final List<OrderItemModel> items;
+
+  OrderModel({
+    required this.id,
+    required this.userId,
+    required this.orderNo,
+    required this.totalAmount,
+    this.paymentMethod,
+    this.paymentStatus = 'pending',
+    this.orderStatus = 'pending',
+    this.shippingAddress,
+    this.paymentId,
+    this.paidAt,
+    this.shippedAt,
+    this.completedAt,
+    required this.createdAt,
+    this.items = const [],
+  });
+
+  factory OrderModel.fromJson(Map<String, dynamic> json) {
+    return OrderModel(
+      id: json['id'] as String,
+      userId: json['user_id'] as String,
+      orderNo: json['order_no'] as String,
+      totalAmount: (json['total_amount'] as num).toDouble(),
+      paymentMethod: json['payment_method'] as String?,
+      paymentStatus: json['payment_status'] as String? ?? 'pending',
+      orderStatus: json['order_status'] as String? ?? 'pending',
+      shippingAddress: json['shipping_address'] as String?,
+      paymentId: json['payment_id'] as String?,
+      paidAt: json['paid_at'] != null ? DateTime.parse(json['paid_at']) : null,
+      shippedAt: json['shipped_at'] != null ? DateTime.parse(json['shipped_at']) : null,
+      completedAt: json['completed_at'] != null ? DateTime.parse(json['completed_at']) : null,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      items: json['items'] != null
+          ? (json['items'] as List).map((e) => OrderItemModel.fromJson(e as Map<String, dynamic>)).toList()
+          : [],
+    );
+  }
+}
+
+class CommentModel {
+  final String id;
+  final String postId;
+  final String userId;
+  final String content;
+  final DateTime createdAt;
+  final UserModel? author;
+
+  CommentModel({
+    required this.id,
+    required this.postId,
+    required this.userId,
+    required this.content,
+    required this.createdAt,
+    this.author,
+  });
+
+  factory CommentModel.fromJson(Map<String, dynamic> json) {
+    return CommentModel(
+      id: json['id'] as String,
+      postId: json['post_id'] as String,
+      userId: json['user_id'] as String,
+      content: json['content'] as String,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      author: json['author'] != null ? UserModel.fromJson(json['author']) : null,
+    );
+  }
+}

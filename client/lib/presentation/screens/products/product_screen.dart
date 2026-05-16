@@ -3,9 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nexusacg/core/models/models.dart';
 import 'package:nexusacg/presentation/blocs/product/product_bloc.dart';
 import 'package:nexusacg/presentation/blocs/product/product_state.dart';
+import 'package:nexusacg/presentation/screens/products/product_detail_screen.dart';
 
 class ProductScreen extends StatefulWidget {
-  const ProductScreen({super.key});
+  final int initialTabIndex;
+  const ProductScreen({super.key, this.initialTabIndex = 0});
 
   @override
   State<ProductScreen> createState() => _ProductScreenState();
@@ -17,13 +19,16 @@ class _ProductScreenState extends State<ProductScreen> with SingleTickerProvider
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 2, vsync: this, initialIndex: widget.initialTabIndex);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         final zone = _tabController.index == 0 ? 'cosplay' : 'peripheral';
         context.read<ProductBloc>().add(ProductLoadRequested(zone: zone));
       }
     });
+    // Load initial tab
+    final zone = widget.initialTabIndex == 0 ? 'cosplay' : 'peripheral';
+    context.read<ProductBloc>().add(ProductLoadRequested(zone: zone));
   }
 
   @override
@@ -80,45 +85,53 @@ class _ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Container(
-              color: Colors.grey.shade200,
-              child: product.images.isNotEmpty
-                  ? Image.network(product.images.first, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.image, size: 48, color: Colors.grey)))
-                  : const Center(child: Icon(Icons.image, size: 48, color: Colors.grey)),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => ProductDetailScreen(product: product)),
+          );
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Container(
+                color: Colors.grey.shade200,
+                child: product.images.isNotEmpty
+                    ? Image.network(product.images.first, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.image, size: 48, color: Colors.grey)))
+                    : const Center(child: Icon(Icons.image, size: 48, color: Colors.grey)),
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  product.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 4),
-                if (product.animeName != null)
-                  Text(product.animeName!, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Text('¥${product.price.toStringAsFixed(2)}',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFEF4444))),
-                    if (product.originalPrice != null)
-                      Text('¥${product.originalPrice!.toStringAsFixed(2)}',
-                          style: const TextStyle(fontSize: 11, color: Colors.grey, decoration: TextDecoration.lineThrough)),
-                  ],
-                ),
-              ],
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 4),
+                  if (product.animeName != null)
+                    Text(product.animeName!, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Text('¥${product.price.toStringAsFixed(2)}',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFEF4444))),
+                      if (product.originalPrice != null)
+                        Text('¥${product.originalPrice!.toStringAsFixed(2)}',
+                            style: const TextStyle(fontSize: 11, color: Colors.grey, decoration: TextDecoration.lineThrough)),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -39,6 +39,8 @@ func Connect(cfg *config.Config) *gorm.DB {
 		&model.ServiceProvider{},
 		&model.RefreshToken{},
 		&model.PaymentLog{},
+		&model.ProfitShareRecord{},
+		&model.EmailVerificationToken{},
 	)
 
 	log.Println("database connected and migrated")

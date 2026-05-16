@@ -99,7 +99,9 @@ func SecurityHeaders() gin.HandlerFunc {
 		c.Header("X-Frame-Options", "DENY")
 		c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
-		c.Header("Content-Security-Policy", "default-src 'self'")
+		if c.Request.URL.Path != "/verify" && c.Request.URL.Path != "/login" {
+			c.Header("Content-Security-Policy", "default-src 'self'")
+		}
 		c.Header("Cache-Control", "no-store, no-cache, must-revalidate")
 		c.Next()
 	}
