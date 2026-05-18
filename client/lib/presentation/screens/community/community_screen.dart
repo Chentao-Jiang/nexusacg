@@ -134,14 +134,13 @@ class _XhsCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Cover image or text card
             if (hasImage)
               CachedNetworkImage(
                 imageUrl: post.images.first,
                 fit: BoxFit.cover,
                 width: double.infinity,
                 placeholder: (_, __) => Container(
-                  height: 150 + (indexOf(0) % 3) * 40.0,
+                  height: 150,
                   color: Colors.grey.shade200,
                 ),
                 errorWidget: (_, __, ___) => Container(
@@ -149,34 +148,60 @@ class _XhsCard extends StatelessWidget {
                   color: Colors.grey.shade200,
                   child: const Icon(Icons.broken_image, color: Colors.grey),
                 ),
-              )
-            else if (hasVideo)
+              ),
+            if (!hasImage && hasVideo)
               Container(
-                height: 150,
-                color: Colors.black12,
+                height: 180,
+                color: Colors.grey.shade900,
                 child: const Center(
-                  child: Icon(Icons.play_circle_fill, size: 48, color: Colors.white70),
-                ),
-              )
-            else
-              Container(
-                padding: const EdgeInsets.all(12),
-                child: Text(
-                  post.content,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 14, height: 1.4),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.play_circle_filled, size: 48, color: Colors.white70),
+                      SizedBox(height: 4),
+                      Text('视频', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    ],
+                  ),
                 ),
               ),
-            // Bottom info
             Padding(
               padding: const EdgeInsets.all(8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (hasVideo && hasImage)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.play_arrow, size: 12, color: Colors.white),
+                                SizedBox(width: 2),
+                                Text('视频', style: TextStyle(color: Colors.white, fontSize: 10)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   if (post.title.isNotEmpty)
                     Text(post.title, maxLines: 1, overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+                  if (!hasImage && !hasVideo && post.title.isEmpty)
+                    Text(
+                      post.content,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 14, height: 1.4),
+                    ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
@@ -206,6 +231,4 @@ class _XhsCard extends StatelessWidget {
       ),
     );
   }
-
-  int indexOf(int fallback) => 0;
 }

@@ -105,6 +105,7 @@ type Post struct {
 	LikeCount    int         `json:"like_count" gorm:"default:0"`
 	CommentCount int         `json:"comment_count" gorm:"default:0"`
 	Status       string      `json:"status" gorm:"default:pending_review;index"`
+	Visibility   string      `json:"visibility" gorm:"default:public;index"` // public | followers | private
 	CreatedAt    time.Time   `json:"created_at"`
 	UpdatedAt    time.Time   `json:"updated_at"`
 	Author       *User       `json:"author,omitempty" gorm:"foreignKey:UserID;references:ID"`

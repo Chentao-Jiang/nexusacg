@@ -275,6 +275,7 @@ func NewPostHandler(r *gin.RouterGroup, svc *service.PostService, authMW gin.Han
 	private.Use(authMW)
 	private.POST("", h.Create)
 	private.GET("/my", h.MyPosts)
+	private.PUT("/:id", h.UpdatePost)
 	private.DELETE("/:id", h.DeletePost)
 	private.POST("/:id/like", h.Like)
 	private.DELETE("/:id/like", h.Unlike)
@@ -526,11 +527,12 @@ func (h *PostHandler) CreateComment(c *gin.Context) {
 }
 
 type CreatePostRequest struct {
-	Title    string   `json:"title" binding:"max=200"`
-	Content  string   `json:"content" binding:"required,max=10000"`
-	Images   []string `json:"images" binding:"max=20"`
-	VideoURL *string  `json:"video_url"`
-	Tags     []string `json:"tags" binding:"max=10"`
+	Title      string   `json:"title" binding:"max=200"`
+	Content    string   `json:"content" binding:"required,max=10000"`
+	Images     []string `json:"images" binding:"max=20"`
+	VideoURL   *string  `json:"video_url"`
+	Tags       []string `json:"tags" binding:"max=10"`
+	Visibility string   `json:"visibility" binding:"omitempty,oneof=public followers private"`
 }
 
 // MyPosts godoc
@@ -600,6 +602,62 @@ func (h *PostHandler) DeletePost(c *gin.Context) {
 		return
 	}
 	Success(c, gin.H{"message": "已删除"})
+}
+
+// UpdatePost godoc
+// @Summary Update a post
+// @Description Update a post by ID (owner only)
+// @Tags posts
+// @Accept json
+// @Produce json
+// @Param id path string true "Post ID"
+// @Param request body UpdatePostRequest true "Updated post data"
+// @Success 200 {object} Response
+// @Security BearerAuth
+// @Router /posts/{id} [put]
+func (h *PostHandler) UpdatePost(c *gin.Context) {
+	userIDStr, ok := c.Get("user_id")
+	if !ok {
+		Unauthorized(c, "invalid token")
+		return
+	}
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		Unauthorized(c, "invalid user ID")
+		return
+	}
+	postID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		BadRequest(c, "invalid post ID")
+		return
+	}
+	var req UpdatePostRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		BadRequest(c, "invalid request: "+err.Error())
+		return
+	}
+	post, err := h.svc.UpdatePost(c.Request.Context(), userID, postID, service.UpdatePostInput{
+		Title:      req.Title,
+		Content:    req.Content,
+		Images:     req.Images,
+		VideoURL:   req.VideoURL,
+		Tags:       req.Tags,
+		Visibility: req.Visibility,
+	})
+	if err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
+	Success(c, post)
+}
+
+type UpdatePostRequest struct {
+	Title      *string  `json:"title"`
+	Content    *string  `json:"content"`
+	Images     []string `json:"images"`
+	VideoURL   *string  `json:"video_url"`
+	Tags       []string `json:"tags"`
+	Visibility string   `json:"visibility" binding:"omitempty,oneof=public followers private"`
 }
 
 type EventHandler struct {

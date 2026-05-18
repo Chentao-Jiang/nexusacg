@@ -68,13 +68,34 @@ class PostRepository {
     List<String> images = const [],
     String? videoUrl,
     List<String> tags = const [],
+    String? visibility,
   }) async {
     final body = <String, dynamic>{'content': content};
     if (title.isNotEmpty) body['title'] = title;
     if (images.isNotEmpty) body['images'] = images;
     if (videoUrl != null) body['video_url'] = videoUrl;
     if (tags.isNotEmpty) body['tags'] = tags;
+    if (visibility != null) body['visibility'] = visibility;
     final response = await _api.post('/posts', data: body);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>?> updatePost(String postId, {
+    String? title,
+    String? content,
+    List<String>? images,
+    String? videoUrl,
+    List<String>? tags,
+    String? visibility,
+  }) async {
+    final body = <String, dynamic>{};
+    if (title != null) body['title'] = title;
+    if (content != null) body['content'] = content;
+    if (images != null) body['images'] = images;
+    if (videoUrl != null) body['video_url'] = videoUrl;
+    if (tags != null) body['tags'] = tags;
+    if (visibility != null) body['visibility'] = visibility;
+    final response = await _api.put('/posts/$postId', data: body);
     return response.data;
   }
 }

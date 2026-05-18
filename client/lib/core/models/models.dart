@@ -93,6 +93,7 @@ class PostModel {
   final int commentCount;
   final bool? isLiked;
   final String status;
+  final String visibility;
   final DateTime createdAt;
   final UserModel? author;
 
@@ -109,6 +110,7 @@ class PostModel {
     this.commentCount = 0,
     this.isLiked,
     this.status = 'approved',
+    this.visibility = 'public',
     required this.createdAt,
     this.author,
   });
@@ -127,6 +129,7 @@ class PostModel {
       commentCount: json['comment_count'] as int? ?? 0,
       isLiked: json['is_liked'] as bool?,
       status: json['status'] as String? ?? 'approved',
+      visibility: json['visibility'] as String? ?? 'public',
       createdAt: DateTime.parse(json['created_at'] as String),
       author: json['author'] != null ? UserModel.fromJson(json['author']) : null,
     );

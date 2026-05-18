@@ -64,6 +64,10 @@ class ApiClient {
     return _dio.delete<T>(path);
   }
 
+  Future<Response<T>> put<T>(String path, {dynamic data}) async {
+    return _dio.put<T>(path, data: data);
+  }
+
   Future<String?> uploadVideo(File file, {void Function(int, int)? onProgress}) async {
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(file.path),

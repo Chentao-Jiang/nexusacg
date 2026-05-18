@@ -127,7 +127,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	tokens, err := h.svc.Login(c.Request.Context(), service.LoginInput{
+	user, tokens, err := h.svc.Login(c.Request.Context(), service.LoginInput{
 		Phone:    req.Phone,
 		Email:    req.Email,
 		Password: req.Password,
@@ -137,7 +137,12 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	Success(c, tokens)
+	Success(c, gin.H{
+		"access_token":  tokens.AccessToken,
+		"refresh_token": tokens.RefreshToken,
+		"expires_in":    tokens.ExpiresIn,
+		"user":          user,
+	})
 }
 
 type RefreshRequest struct {
@@ -269,13 +274,18 @@ func (h *AuthHandler) SMSLogin(c *gin.Context) {
 		return
 	}
 
-	tokens, err := h.svc.SMSLogin(c.Request.Context(), req.Phone, req.Password, req.Nickname)
+	user, tokens, err := h.svc.SMSLogin(c.Request.Context(), req.Phone, req.Password, req.Nickname)
 	if err != nil {
 		Unauthorized(c, err.Error())
 		return
 	}
 
-	Success(c, tokens)
+	Success(c, gin.H{
+		"access_token":  tokens.AccessToken,
+		"refresh_token": tokens.RefreshToken,
+		"expires_in":    tokens.ExpiresIn,
+		"user":          user,
+	})
 }
 
 // VerifyEmail godoc

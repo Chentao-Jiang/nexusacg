@@ -4,6 +4,15 @@ import 'package:image_picker/image_picker.dart';
 import 'package:nexusacg/core/network/api_client.dart';
 import 'package:nexusacg/core/repositories/repositories.dart';
 
+/// Tracks an image being uploaded: local file + remote URL
+class _UploadedImage {
+  final File file;
+  String? url;
+  bool uploading;
+
+  _UploadedImage({required this.file, this.url, this.uploading = false});
+}
+
 class PostCreateScreen extends StatefulWidget {
   const PostCreateScreen({super.key});
 
@@ -16,41 +25,84 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
   final _contentController = TextEditingController();
   final _repo = PostRepository();
   final _imagePicker = ImagePicker();
-  final List<String> _imageUrls = [];
-  final List<XFile> _selectedImages = [];
+  final List<_UploadedImage> _images = [];
+  final List<String> _uploadedVideoUrls = [];
+  String? _videoUrl;
+  String _visibility = 'public'; // public | followers | private
   bool _submitting = false;
-  bool _uploadingImage = false;
+  bool _uploadingAny = false;
 
   Future<void> _pickImage() async {
-    final image = await _imagePicker.pickImage(source: ImageSource.gallery, maxWidth: 1920, maxHeight: 1920);
+    final image = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1920,
+      imageQuality: 85,
+    );
     if (image == null) return;
 
+    final item = _UploadedImage(file: File(image.path), uploading: true);
     setState(() {
-      _selectedImages.add(image);
-      _uploadingImage = true;
+      _images.add(item);
+      _uploadingAny = true;
     });
 
     try {
-      final url = await ApiClient().uploadImage(File(image.path));
-      if (url != null && mounted) {
-        setState(() => _imageUrls.add(url));
+      final url = await ApiClient().uploadImage(item.file);
+      if (mounted) {
+        setState(() {
+          item.url = url;
+          item.uploading = false;
+          _uploadingAny = _images.any((i) => i.uploading);
+        });
       }
     } catch (e) {
       if (mounted) {
+        setState(() {
+          item.uploading = false;
+          _uploadingAny = _images.any((i) => i.uploading);
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('图片上传失败')),
+          SnackBar(content: Text('图片上传失败: $e')),
         );
       }
-    } finally {
-      if (mounted) setState(() => _uploadingImage = false);
     }
   }
 
   void _removeImage(int index) {
-    setState(() {
-      _imageUrls.removeAt(index);
-      _selectedImages.removeAt(index);
-    });
+    setState(() => _images.removeAt(index));
+  }
+
+  Future<void> _pickVideo() async {
+    final video = await _imagePicker.pickVideo(
+      source: ImageSource.gallery,
+      maxDuration: const Duration(minutes: 5),
+    );
+    if (video == null) return;
+
+    final file = File(video.path);
+    setState(() => _uploadingAny = true);
+
+    try {
+      final url = await ApiClient().uploadVideo(file);
+      if (mounted) {
+        setState(() {
+          _videoUrl = url;
+          _uploadingAny = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _uploadingAny = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('视频上传失败: $e')),
+        );
+      }
+    }
+  }
+
+  void _removeVideo() {
+    setState(() => _videoUrl = null);
   }
 
   Future<void> _submitPost() async {
@@ -61,18 +113,29 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
       return;
     }
 
+    // Wait for uploads
+    if (_images.any((i) => i.uploading)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请等待图片上传完成')),
+      );
+      return;
+    }
+
     setState(() => _submitting = true);
     try {
+      final imageUrls = _images.map((i) => i.url).whereType<String>().toList();
       final result = await _repo.createPost(
         title: _titleController.text.trim(),
         content: _contentController.text.trim(),
-        images: _imageUrls,
+        images: imageUrls,
+        videoUrl: _videoUrl,
+        visibility: _visibility,
       );
       if (mounted) {
         if (result != null) {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('发布成功，等待审核')),
+            const SnackBar(content: Text('发布成功')),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -138,28 +201,89 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
               maxLength: 10000,
             ),
             const SizedBox(height: 16),
-            // Image preview
-            if (_imageUrls.isNotEmpty) ...[
+            // Visibility selector
+            Row(
+              children: [
+                const Icon(Icons.visibility_outlined, size: 20),
+                const SizedBox(width: 8),
+                const Text('可见范围', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                const Spacer(),
+                DropdownButton<String>(
+                  value: _visibility,
+                  underline: const SizedBox(),
+                  items: const [
+                    DropdownMenuItem(value: 'public', child: Text('所有人')),
+                    DropdownMenuItem(value: 'followers', child: Text('粉丝可见')),
+                    DropdownMenuItem(value: 'private', child: Text('仅自己')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setState(() => _visibility = v);
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // Video preview
+            if (_videoUrl != null) ...[
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.video_file, color: Colors.blue),
+                    const SizedBox(width: 8),
+                    const Expanded(child: Text('视频已上传', style: TextStyle(color: Colors.blue))),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: _removeVideo,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            // Image previews
+            if (_images.isNotEmpty) ...[
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: List.generate(_imageUrls.length, (i) {
+                children: List.generate(_images.length, (i) {
+                  final item = _images[i];
                   return Stack(
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(_imageUrls[i], width: 100, height: 100, fit: BoxFit.cover),
+                        child: Image.file(
+                          item.file,
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 100, height: 100, color: Colors.grey.shade200,
+                            child: const Icon(Icons.broken_image),
+                          ),
+                        ),
                       ),
+                      if (item.uploading)
+                        Container(
+                          width: 100, height: 100,
+                          color: Colors.black54,
+                          child: const Center(
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          ),
+                        ),
                       Positioned(
-                        top: 2,
-                        right: 2,
+                        top: 2, right: 2,
                         child: GestureDetector(
                           onTap: () => _removeImage(i),
                           child: Container(
                             padding: const EdgeInsets.all(2),
                             decoration: const BoxDecoration(
-                              color: Colors.black54,
-                              shape: BoxShape.circle,
+                              color: Colors.black54, shape: BoxShape.circle,
                             ),
                             child: const Icon(Icons.close, size: 14, color: Colors.white),
                           ),
@@ -171,13 +295,29 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
               ),
               const SizedBox(height: 12),
             ],
-            // Add image button
-            OutlinedButton.icon(
-              onPressed: _uploadingImage ? null : _pickImage,
-              icon: _uploadingImage
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.add_photo_alternate_outlined),
-              label: const Text('添加图片'),
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _uploadingAny ? null : _pickImage,
+                    icon: _images.any((i) => i.uploading)
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.add_photo_alternate_outlined),
+                    label: const Text('添加图片'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _uploadingAny || _videoUrl != null ? null : _pickVideo,
+                    icon: _uploadingAny
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.videocam_outlined),
+                    label: const Text('添加视频'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

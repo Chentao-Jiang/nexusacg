@@ -20,13 +20,14 @@ func NewPostService(db *gorm.DB) *PostService {
 }
 
 type CreatePostInput struct {
-	UserID   uuid.UUID `json:"user_id"`
-	Title    string    `json:"title"`
-	Content  string    `json:"content"`
-	Images   []string  `json:"images"`
-	VideoURL *string   `json:"video_url"`
-	Type     string    `json:"type"`
-	Tags     []string  `json:"tags"`
+	UserID     uuid.UUID `json:"user_id"`
+	Title      string    `json:"title"`
+	Content    string    `json:"content"`
+	Images     []string  `json:"images"`
+	VideoURL   *string   `json:"video_url"`
+	Type       string    `json:"type"`
+	Tags       []string  `json:"tags"`
+	Visibility string    `json:"visibility"`
 }
 
 func (s *PostService) Create(ctx context.Context, input CreatePostInput) (*model.Post, error) {
@@ -54,6 +55,11 @@ func (s *PostService) Create(ctx context.Context, input CreatePostInput) (*model
 	}
 	if input.Tags != nil {
 		post.Tags = input.Tags
+	}
+	if input.Visibility != "" {
+		post.Visibility = input.Visibility
+	} else {
+		post.Visibility = "public"
 	}
 
 	if err := s.db.Create(&post).Error; err != nil {
@@ -188,6 +194,57 @@ func (s *PostService) ListComments(ctx context.Context, postID uuid.UUID, page, 
 		return nil, fmt.Errorf("failed to list comments: %w", err)
 	}
 	return &CommentListResult{Items: comments, Total: total, Page: page, Size: pageSize}, nil
+}
+
+
+
+type UpdatePostInput struct {
+	Title      *string  `json:"title"`
+	Content    *string  `json:"content"`
+	Images     []string `json:"images"`
+	VideoURL   *string  `json:"video_url"`
+	Tags       []string `json:"tags"`
+	Visibility string   `json:"visibility"`
+}
+
+// UpdatePost updates a post by ID with ownership check.
+func (s *PostService) UpdatePost(ctx context.Context, userID, postID uuid.UUID, input UpdatePostInput) (*model.Post, error) {
+	var post model.Post
+	if err := s.db.Where("id = ? AND user_id = ?", postID, userID).First(&post).Error; err != nil {
+		return nil, fmt.Errorf("post not found or not owned by user")
+	}
+
+	updates := map[string]interface{}{}
+	if input.Title != nil {
+		updates["title"] = *input.Title
+	}
+	if input.Content != nil {
+		updates["content"] = *input.Content
+	}
+	if input.Images != nil {
+		updates["images"] = input.Images
+	}
+	if input.VideoURL != nil {
+		updates["video_url"] = *input.VideoURL
+		if *input.VideoURL != "" {
+			updates["type"] = "video"
+		}
+	}
+	if input.Tags != nil {
+		updates["tags"] = input.Tags
+	}
+	if input.Visibility != "" {
+		updates["visibility"] = input.Visibility
+	}
+
+	if len(updates) == 0 {
+		return nil, fmt.Errorf("no fields to update")
+	}
+
+	if err := s.db.Model(&post).Updates(updates).Error; err != nil {
+		return nil, fmt.Errorf("failed to update post: %w", err)
+	}
+	return s.Get(ctx, postID)
 }
 
 // GetMyPosts returns posts by the authenticated user.

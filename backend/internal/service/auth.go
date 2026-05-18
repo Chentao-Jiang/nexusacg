@@ -169,12 +169,12 @@ func (s *AuthService) WeChatOAuthLogin(ctx context.Context, wechat *WeChatOAuthS
 	return &user, tokens, nil
 }
 
-func (s *AuthService) Login(ctx context.Context, input LoginInput) (*TokenPair, error) {
+func (s *AuthService) Login(ctx context.Context, input LoginInput) (*model.User, *TokenPair, error) {
 	// First check if user exists with pending_email status (for better error message)
 	if input.Email != "" {
 		var pendingUser model.User
 		if err := s.db.Where("email = ? AND status = ?", input.Email, "pending_email").First(&pendingUser).Error; err == nil {
-			return nil, fmt.Errorf("邮箱未验证，请先查收验证邮件完成激活")
+			return nil, nil, fmt.Errorf("邮箱未验证，请先查收验证邮件完成激活")
 		}
 	}
 
@@ -185,27 +185,27 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput) (*TokenPair, 
 	} else if input.Email != "" {
 		query = query.Where("email = ?", input.Email)
 	} else {
-		return nil, fmt.Errorf("phone or email required")
+		return nil, nil, fmt.Errorf("phone or email required")
 	}
 
 	if err := query.First(&user).Error; err != nil {
-		return nil, fmt.Errorf("invalid credentials")
+		return nil, nil, fmt.Errorf("invalid credentials")
 	}
 
 	if user.PasswordHash == nil {
-		return nil, fmt.Errorf("invalid credentials")
+		return nil, nil, fmt.Errorf("invalid credentials")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(*user.PasswordHash), []byte(input.Password)); err != nil {
-		return nil, fmt.Errorf("invalid credentials")
+		return nil, nil, fmt.Errorf("invalid credentials")
 	}
 
 	tokens, err := s.generateTokens(&user)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return tokens, nil
+	return &user, tokens, nil
 }
 
 func (s *AuthService) generateTokens(user *model.User) (*TokenPair, error) {
@@ -354,7 +354,7 @@ func (s *AuthService) QQOAuthLogin(ctx context.Context, qq *QQOAuthService, code
 }
 
 // SMSLogin finds or creates a user by phone number and returns JWT tokens.
-func (s *AuthService) SMSLogin(ctx context.Context, phone, password, nickname string) (*TokenPair, error) {
+func (s *AuthService) SMSLogin(ctx context.Context, phone, password, nickname string) (*model.User, *TokenPair, error) {
 	var user model.User
 	err := s.db.Where("phone = ? AND status = ?", phone, "active").First(&user).Error
 	if err == gorm.ErrRecordNotFound {
@@ -362,7 +362,7 @@ func (s *AuthService) SMSLogin(ctx context.Context, phone, password, nickname st
 		phoneRef := phone
 		hash, hashErr := bcrypt.GenerateFromPassword([]byte(password), 12)
 		if hashErr != nil {
-			return nil, fmt.Errorf("failed to hash password: %w", hashErr)
+			return nil, nil, fmt.Errorf("failed to hash password: %w", hashErr)
 		}
 		hashStr := string(hash)
 		user = model.User{
@@ -374,17 +374,21 @@ func (s *AuthService) SMSLogin(ctx context.Context, phone, password, nickname st
 			Status:       "active",
 		}
 		if createErr := s.db.Create(&user).Error; createErr != nil {
-			return nil, fmt.Errorf("failed to create user: %w", createErr)
+			return nil, nil, fmt.Errorf("failed to create user: %w", createErr)
 		}
 	} else if err != nil {
-		return nil, fmt.Errorf("failed to query user: %w", err)
+		return nil, nil, fmt.Errorf("failed to query user: %w", err)
 	}
 
 	if user.Status != "active" {
-		return nil, fmt.Errorf("user account is not active")
+		return nil, nil, fmt.Errorf("user account is not active")
 	}
 
-	return s.generateTokens(&user)
+	tokens, err := s.generateTokens(&user)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &user, tokens, nil
 }
 
 // GetMe returns the user by ID.
