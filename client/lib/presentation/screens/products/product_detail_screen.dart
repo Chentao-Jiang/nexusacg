@@ -14,7 +14,6 @@ class ProductDetailScreen extends StatefulWidget {
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   late ProductModel _product;
-  bool _loading = false;
   int _quantity = 1;
   final _repo = ProductRepository();
   int _currentImageIndex = 0;
@@ -27,7 +26,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   Future<void> _loadDetail() async {
-    setState(() => _loading = true);
+    setState(() {});
     try {
       final detail = await _repo.getProduct(_product.id);
       if (detail != null && mounted) {
@@ -36,7 +35,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     } catch (e) {
       // Ignore, use cached data
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() {});
     }
   }
 

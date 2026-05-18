@@ -10,6 +10,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc() : super(AuthInitial()) {
     on<AuthLoginRequested>(_onLogin);
     on<AuthRegisterRequested>(_onRegister);
+    on<AuthSmsLoginRequested>(_onSmsLogin);
     on<AuthLogoutRequested>(_onLogout);
     on<AuthTokenRestored>(_onTokenRestored);
   }
@@ -58,6 +59,26 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
+  Future<void> _onSmsLogin(AuthSmsLoginRequested event, Emitter<AuthState> emit) async {
+    emit(AuthLoading());
+    try {
+      final result = await _repo.smsLogin(event.phone, event.code, event.password, event.nickname);
+
+      if (result['code'] == 0 && result['data'] != null) {
+        final token = result['data']['access_token'] as String;
+        final user = result['data']['user'] != null
+            ? UserModel.fromJson(result['data']['user'])
+            : UserModel(id: '', nickname: event.nickname, role: 'user');
+        ApiClient().accessToken = token;
+        emit(AuthAuthenticated(user: user, accessToken: token));
+      } else {
+        emit(AuthError(result['message'] as String? ?? '注册失败'));
+      }
+    } catch (e) {
+      emit(AuthError('注册失败: ${e.toString()}'));
+    }
+  }
+
   Future<void> _onLogout(AuthLogoutRequested event, Emitter<AuthState> emit) async {
     ApiClient().accessToken = null;
     emit(AuthUnauthenticated());
@@ -92,6 +113,13 @@ class AuthRegisterRequested extends AuthEvent {
   final String? phone;
   final String? email;
   AuthRegisterRequested({required this.nickname, required this.password, this.phone, this.email});
+}
+class AuthSmsLoginRequested extends AuthEvent {
+  final String phone;
+  final String code;
+  final String nickname;
+  final String password;
+  AuthSmsLoginRequested({required this.phone, required this.code, required this.nickname, required this.password});
 }
 class AuthLogoutRequested extends AuthEvent {}
 class AuthTokenRestored extends AuthEvent {

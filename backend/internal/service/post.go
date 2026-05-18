@@ -189,3 +189,31 @@ func (s *PostService) ListComments(ctx context.Context, postID uuid.UUID, page, 
 	}
 	return &CommentListResult{Items: comments, Total: total, Page: page, Size: pageSize}, nil
 }
+
+// GetMyPosts returns posts by the authenticated user.
+func (s *PostService) GetMyPosts(ctx context.Context, userID uuid.UUID, page, pageSize int) (*PostListResult, error) {
+	var total int64
+	s.db.Model(&model.Post{}).Where("user_id = ?", userID).Count(&total)
+	offset := (page - 1) * pageSize
+	if offset < 0 {
+		offset = 0
+	}
+	var posts []model.Post
+	if err := s.db.Where("user_id = ?", userID).Preload("Author").
+		Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&posts).Error; err != nil {
+		return nil, fmt.Errorf("failed to list my posts: %w", err)
+	}
+	return &PostListResult{Items: posts, Total: total, Page: page, Size: pageSize}, nil
+}
+
+// DeletePost deletes a post by ID and user ID (ownership check).
+func (s *PostService) DeletePost(ctx context.Context, userID, postID uuid.UUID) error {
+	result := s.db.Where("id = ? AND user_id = ?", postID, userID).Delete(&model.Post{})
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("post not found or not owned by user")
+	}
+	if result.Error != nil {
+		return fmt.Errorf("failed to delete post: %w", result.Error)
+	}
+	return nil
+}

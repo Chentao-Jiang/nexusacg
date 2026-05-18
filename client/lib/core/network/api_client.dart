@@ -17,6 +17,7 @@ class ApiClient {
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
       headers: {'Content-Type': 'application/json'},
+      validateStatus: (status) => true, // Never throw on HTTP errors
     ));
 
     _dio.interceptors.add(InterceptorsWrapper(
@@ -77,7 +78,7 @@ class ApiClient {
       onSendProgress: onProgress,
     );
     final data = response.data;
-    if (data['url'] != null) return data['url'] as String;
+    if (data is Map && data['url'] != null) return data['url'] as String;
     return null;
   }
 
@@ -86,12 +87,12 @@ class ApiClient {
       'file': await MultipartFile.fromFile(file.path),
     });
     final response = await _dio.post(
-      '/upload/image',
+      '/upload',
       data: formData,
       options: Options(headers: {'Content-Type': 'multipart/form-data'}),
     );
     final data = response.data;
-    if (data['url'] != null) return data['url'] as String;
+    if (data is Map && data['url'] != null) return data['url'] as String;
     return null;
   }
 }

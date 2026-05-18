@@ -5,6 +5,7 @@ import 'package:nexusacg/presentation/blocs/auth/auth_bloc.dart';
 import 'package:nexusacg/presentation/blocs/auth/auth_state.dart';
 import 'package:nexusacg/presentation/screens/orders/orders_screen.dart';
 import 'package:nexusacg/presentation/screens/settings/settings_screen.dart';
+import 'package:nexusacg/presentation/screens/community/my_posts_screen.dart';
 import 'package:nexusacg/presentation/screens/profile/edit_profile_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -88,15 +89,18 @@ class ProfileScreen extends StatelessWidget {
                 _menuItem(Icons.shopping_bag, '我的订单', onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const OrdersScreen()));
                 }),
-                _menuItem(Icons.favorite, '我的收藏'),
-                _menuItem(Icons.local_offer, '我的商品'),
-                _menuItem(Icons.bookmark, '我的预约'),
+                _menuItem(Icons.article_outlined, '我的帖子', onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const MyPostsScreen()));
+                }),
+                _menuItem(Icons.favorite, '我的收藏', onTap: () => _showComingSoon(context, '我的收藏')),
+                _menuItem(Icons.local_offer, '我的商品', onTap: () => _showComingSoon(context, '我的商品')),
+                _menuItem(Icons.bookmark, '我的预约', onTap: () => _showComingSoon(context, '我的预约')),
                 const Divider(),
-                _menuItem(Icons.store, '我要入驻', subtitle: '妆娘/摄影师/摊主'),
+                _menuItem(Icons.store, '我要入驻', subtitle: '妆娘/摄影师/摊主', onTap: () => _showComingSoon(context, '商家入驻')),
                 _menuItem(Icons.settings, '设置', onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
                 }),
-                _menuItem(Icons.help_outline, '帮助与反馈'),
+                _menuItem(Icons.help_outline, '帮助与反馈', onTap: () => _showComingSoon(context, '帮助与反馈')),
                 const Divider(),
                 Padding(
                   padding: const EdgeInsets.all(16),
@@ -137,7 +141,7 @@ class ProfileScreen extends StatelessWidget {
   Widget _quickAction(BuildContext context, IconData icon, String label, String status) {
     return InkWell(
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const OrdersScreen()));
+        Navigator.push(context, MaterialPageRoute(builder: (_) => OrdersScreen(initialStatus: status)));
       },
       child: Column(
         children: [
@@ -146,6 +150,12 @@ class ProfileScreen extends StatelessWidget {
           Text(label, style: const TextStyle(fontSize: 12)),
         ],
       ),
+    );
+  }
+
+  void _showComingSoon(BuildContext context, String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$feature 功能开发中')),
     );
   }
 

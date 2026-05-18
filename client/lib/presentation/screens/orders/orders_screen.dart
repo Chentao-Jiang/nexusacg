@@ -4,7 +4,8 @@ import 'package:nexusacg/core/repositories/repositories.dart';
 import 'package:nexusacg/presentation/screens/orders/order_detail_screen.dart';
 
 class OrdersScreen extends StatefulWidget {
-  const OrdersScreen({super.key});
+  final String? initialStatus;
+  const OrdersScreen({super.key, this.initialStatus});
 
   @override
   State<OrdersScreen> createState() => _OrdersScreenState();
@@ -18,10 +19,21 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
   int _page = 1;
   bool _hasMore = true;
 
+  int _initialTabIndex() {
+    if (widget.initialStatus == null) return 0;
+    switch (widget.initialStatus) {
+      case 'pending': return 1;
+      case 'paid': return 2;
+      case 'shipped': return 3;
+      case 'completed': return 4;
+      default: return 0;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 5, vsync: this, initialIndex: _initialTabIndex());
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         _loadOrders();
@@ -192,5 +204,5 @@ class _OrderCard extends StatelessWidget {
 
 // Extension for displaying product info in order cards
 extension on OrderItemModel {
-  String get productName => '商品 $productId';
+  String get productName => '商品 #${productId.substring(0, 8)}';
 }

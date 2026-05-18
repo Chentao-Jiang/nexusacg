@@ -1,18 +1,14 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:nexusacg/presentation/blocs/auth/auth_bloc.dart';
 import 'package:nexusacg/presentation/blocs/auth/auth_state.dart';
 import 'package:nexusacg/presentation/blocs/product/product_bloc.dart';
 import 'package:nexusacg/presentation/screens/main_screen.dart';
 import 'package:nexusacg/presentation/screens/auth/login_screen.dart';
 import 'package:nexusacg/presentation/screens/auth/email_register_screen.dart';
-import 'package:nexusacg/presentation/screens/auth/email_pending_screen.dart';
 import 'package:nexusacg/presentation/screens/auth/verify_success_screen.dart';
 import 'package:nexusacg/core/theme/app_theme.dart';
 
@@ -33,19 +29,19 @@ class _NexusACGAppState extends State<NexusACGApp> {
     super.initState();
     _authBloc = AuthBloc();
     _restoreAuth();
-    _handleInitialLink();
+    _setupDeepLinks();
   }
 
-  Future<void> _handleInitialLink() async {
+  void _setupDeepLinks() {
+    // Cold start: handle deep link from platform intent
     try {
-      if (Platform.isAndroid) {
-        // Read the initial route from the platform (populated by Android intent data)
-        final route = WidgetsBinding.instance.platformDispatcher.defaultRouteName;
-        if (route != null && route != '/' && route.isNotEmpty) {
-          _handleDeepLink(route);
-        }
+      final route = WidgetsBinding.instance.platformDispatcher.defaultRouteName;
+      if (route != "/" && route.isNotEmpty) {
+        _handleDeepLink(route);
       }
     } catch (_) {}
+    // Runtime deep links: would need app_links package (currently unavailable due to network)
+    // TODO: Add app_links listener for background → foreground deep links
   }
 
   void _handleDeepLink(String link) {
@@ -100,7 +96,7 @@ class _NexusACGAppState extends State<NexusACGApp> {
           '/login': (context) => const LoginScreen(),
           '/email-register': (context) => const EmailRegisterScreen(),
           '/verify-success': (context) {
-            final token = ModalRoute.of(context)?.settings.arguments as String?;
+            ModalRoute.of(context)?.settings.arguments as String?;
             return VerifySuccessScreen(nickname: '');
           },
         },

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/planforever/nexusacg/internal/config"
 	"github.com/planforever/nexusacg/internal/middleware"
 	"github.com/planforever/nexusacg/internal/service"
@@ -32,6 +33,12 @@ func NewAuthHandler(r *gin.RouterGroup, svc *service.AuthService, smsSvc *servic
 	auth.GET("/email/verify", h.VerifyEmail)
 	auth.GET("/email/verify-token", h.VerifyEmailAPI)
 	auth.POST("/email/resend", h.ResendEmailVerification)
+
+	// Authenticated user routes
+	me := auth.Group("")
+	me.Use(middleware.JWTAuth(cfg))
+	me.POST("/me", h.Me)
+	me.POST("/profile", h.UpdateProfile)
 	// WeChat OAuth routes — moderate rate limit to prevent abuse
 	wechat := auth.Group("/wechat")
 	wechat.Use(middleware.RateLimit())
@@ -228,8 +235,10 @@ func (h *AuthHandler) SMSSendCode(c *gin.Context) {
 }
 
 type SMSLoginRequest struct {
-	Phone string `json:"phone" binding:"required,max=20"`
-	Code  string `json:"code" binding:"required,len=6"`
+	Phone    string `json:"phone" binding:"required,max=20"`
+	Code     string `json:"code" binding:"required,len=6"`
+	Password string `json:"password" binding:"required,min=6,max=128"`
+	Nickname string `json:"nickname" binding:"required,min=1,max=50"`
 }
 
 // SMSLogin godoc
@@ -260,7 +269,7 @@ func (h *AuthHandler) SMSLogin(c *gin.Context) {
 		return
 	}
 
-	tokens, err := h.svc.SMSLogin(c.Request.Context(), req.Phone)
+	tokens, err := h.svc.SMSLogin(c.Request.Context(), req.Phone, req.Password, req.Nickname)
 	if err != nil {
 		Unauthorized(c, err.Error())
 		return
@@ -372,6 +381,81 @@ func (h *AuthHandler) ResendEmailVerification(c *gin.Context) {
 
 type ResendEmailRequest struct {
 	Email string `json:"email" binding:"required,email"`
+}
+
+// Me godoc
+// @Summary Get current user profile
+// @Description Returns the authenticated user's profile
+// @Tags auth
+// @Produce json
+// @Success 200 {object} Response
+// @Security BearerAuth
+// @Router /auth/me [post]
+func (h *AuthHandler) Me(c *gin.Context) {
+	userIDStr, ok := c.Get("user_id")
+	if !ok {
+		Unauthorized(c, "invalid token")
+		return
+	}
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		Unauthorized(c, "invalid user ID")
+		return
+	}
+
+	user, err := h.svc.GetMe(c.Request.Context(), userID)
+	if err != nil {
+		Unauthorized(c, err.Error())
+		return
+	}
+	Success(c, user)
+}
+
+// UpdateProfileRequest contains the fields that can be updated.
+type UpdateProfileRequest struct {
+	Nickname  string  `json:"nickname,omitempty" binding:"omitempty,min=1,max=50"`
+	Bio       *string `json:"bio,omitempty" binding:"omitempty,max=500"`
+	AvatarURL *string `json:"avatar_url,omitempty" binding:"omitempty,url,max=512"`
+}
+
+// UpdateProfile godoc
+// @Summary Update user profile
+// @Description Update nickname, bio, and avatar URL
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body UpdateProfileRequest true "Profile update"
+// @Success 200 {object} Response
+// @Security BearerAuth
+// @Router /auth/profile [post]
+func (h *AuthHandler) UpdateProfile(c *gin.Context) {
+	userIDStr, ok := c.Get("user_id")
+	if !ok {
+		Unauthorized(c, "invalid token")
+		return
+	}
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		Unauthorized(c, "invalid user ID")
+		return
+	}
+
+	var req UpdateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		BadRequest(c, "invalid request: "+err.Error())
+		return
+	}
+
+	user, err := h.svc.UpdateProfile(c.Request.Context(), userID, service.UpdateProfileInput{
+		Nickname:  req.Nickname,
+		Bio:       req.Bio,
+		AvatarURL: req.AvatarURL,
+	})
+	if err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
+	Success(c, user)
 }
 
 type WeChatAuthorizeResponse struct {

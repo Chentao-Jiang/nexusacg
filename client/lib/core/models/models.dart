@@ -91,6 +91,7 @@ class PostModel {
   final List<String> tags;
   final int likeCount;
   final int commentCount;
+  final bool? isLiked;
   final String status;
   final DateTime createdAt;
   final UserModel? author;
@@ -106,6 +107,7 @@ class PostModel {
     this.tags = const [],
     this.likeCount = 0,
     this.commentCount = 0,
+    this.isLiked,
     this.status = 'approved',
     required this.createdAt,
     this.author,
@@ -123,6 +125,7 @@ class PostModel {
       tags: json['tags'] != null ? List<String>.from(json['tags']) : [],
       likeCount: json['like_count'] as int? ?? 0,
       commentCount: json['comment_count'] as int? ?? 0,
+      isLiked: json['is_liked'] as bool?,
       status: json['status'] as String? ?? 'approved',
       createdAt: DateTime.parse(json['created_at'] as String),
       author: json['author'] != null ? UserModel.fromJson(json['author']) : null,

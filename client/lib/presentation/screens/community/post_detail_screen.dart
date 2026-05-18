@@ -14,6 +14,11 @@ class PostDetailScreen extends StatefulWidget {
 }
 
 class _PostDetailScreenState extends State<PostDetailScreen> {
+  void _shareAction() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('分享功能开发中')),
+    );
+  }
   VideoPlayerController? _videoController;
   bool _videoInitialized = false;
   bool _playing = false;

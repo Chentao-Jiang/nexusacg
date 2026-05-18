@@ -37,19 +37,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
+  bool _uploading = false;
+
   Future<void> _pickAvatar() async {
     final image = await _imagePicker.pickImage(source: ImageSource.gallery, maxWidth: 512, maxHeight: 512);
     if (image == null) return;
 
+    setState(() => _uploading = true);
     try {
       final url = await ApiClient().uploadImage(File(image.path));
       if (url != null && mounted) {
         setState(() => _avatarUrl = url);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('头像上传成功')));
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('上传失败，请重试')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('头像上传失败')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('头像上传失败: $e')));
       }
+    } finally {
+      if (mounted) setState(() => _uploading = false);
     }
   }
 
@@ -67,12 +75,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         avatarUrl: _avatarUrl,
       );
       if (mounted) {
-        if (result['code'] == 0) {
+        if (result['code'] == 0 && result['data'] != null) {
+          final authBloc = context.read<AuthBloc>();
+          // Refresh AuthBloc by re-fetching current user
+          try {
+            final token = (authBloc.state as AuthAuthenticated).accessToken;
+            authBloc.add(AuthTokenRestored(token));
+          } catch (_) {}
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('保存成功')));
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(result['message'] as String? ?? '保存失败')),
+            SnackBar(content: Text(result is Map && result['message'] != null ? result['message'] as String : '保存失败')),
           );
         }
       }
@@ -117,8 +131,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 children: [
                   CircleAvatar(
                     radius: 50,
+                    backgroundColor: _uploading ? Colors.grey.shade300 : null,
                     backgroundImage: _avatarUrl != null ? NetworkImage(_avatarUrl!) : null,
-                    child: _avatarUrl == null ? const Icon(Icons.person, size: 50) : null,
+                    child: _uploading
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                        : _avatarUrl == null
+                            ? const Icon(Icons.person, size: 50)
+                            : null,
                   ),
                   Positioned(
                     bottom: 0,

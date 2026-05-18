@@ -159,6 +159,28 @@ class AuthRepository {
     return response.data;
   }
 
+  Future<void> sendSmsCode(String phone) async {
+    final response = await _api.post('/auth/sms/send', data: {'phone': phone});
+    final data = response.data;
+    if (data is! Map || data['code'] != 0) {
+      throw Exception(data is Map ? (data['message'] ?? '发送失败') : '发送失败');
+    }
+  }
+
+  Future<Map<String, dynamic>> smsLogin(String phone, String code, String password, String nickname) async {
+    final response = await _api.post('/auth/sms/login', data: {
+      'phone': phone,
+      'code': code,
+      'password': password,
+      'nickname': nickname,
+    });
+    final data = response.data;
+    if (data is! Map || data['code'] != 0) {
+      throw Exception(data is Map ? (data['message'] ?? '注册失败') : '注册失败');
+    }
+    return Map<String, dynamic>.from(data);
+  }
+
   Future<Map<String, dynamic>> login({
     String? phone,
     String? email,
@@ -183,7 +205,11 @@ class AuthRepository {
     if (bio != null) body['bio'] = bio;
     if (avatarUrl != null) body['avatar_url'] = avatarUrl;
     final response = await _api.post('/auth/profile', data: body);
-    return response.data;
+    final data = response.data;
+    if (data is! Map) {
+      throw Exception('服务器返回异常: $data');
+    }
+    return Map<String, dynamic>.from(data);
   }
 
   Future<String?> getQQAuthUrl() async {
@@ -193,6 +219,14 @@ class AuthRepository {
       return data['data']['redirect_url'] as String?;
     }
     return null;
+  }
+
+  Future<void> resendEmailVerification(String email) async {
+    final response = await _api.post('/auth/email/resend', data: {'email': email});
+    final data = response.data;
+    if (data is! Map || data['code'] != 0) {
+      throw Exception(data is Map ? (data['message'] ?? '发送失败') : '发送失败');
+    }
   }
 
   Future<Map<String, dynamic>?> qqCallback(String code) async {

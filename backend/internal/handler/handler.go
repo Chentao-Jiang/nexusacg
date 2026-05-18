@@ -247,7 +247,7 @@ type CreateProductRequest struct {
 	Description   string     `json:"description" binding:"max=5000"`
 	Price         float64    `json:"price" binding:"required,gt=0,lt=1000000"`
 	OriginalPrice *float64   `json:"original_price"`
-	Zone          string     `json:"zone" binding:"required,oneof=peripheral costume_makeup_props"`
+	Zone          string     `json:"zone" binding:"required,oneof=peripheral cosplay costume_makeup_props"`
 	SellerType    string     `json:"seller_type" binding:"omitempty,oneof=certified_merchant certified_service uncertified"`
 	SourceType    string     `json:"source_type" binding:"required,oneof=official agent self_made"`
 	Images        []string   `json:"images" binding:"max=20"`
@@ -274,6 +274,8 @@ func NewPostHandler(r *gin.RouterGroup, svc *service.PostService, authMW gin.Han
 	private := r.Group("/posts")
 	private.Use(authMW)
 	private.POST("", h.Create)
+	private.GET("/my", h.MyPosts)
+	private.DELETE("/:id", h.DeletePost)
 	private.POST("/:id/like", h.Like)
 	private.DELETE("/:id/like", h.Unlike)
 	private.POST("/:id/comments", h.CreateComment)
@@ -529,6 +531,75 @@ type CreatePostRequest struct {
 	Images   []string `json:"images" binding:"max=20"`
 	VideoURL *string  `json:"video_url"`
 	Tags     []string `json:"tags" binding:"max=10"`
+}
+
+// MyPosts godoc
+// @Summary List my posts
+// @Description List posts created by the authenticated user
+// @Tags posts
+// @Produce json
+// @Param page query int false "Page number"
+// @Param page_size query int false "Page size"
+// @Success 200 {object} Response
+// @Security BearerAuth
+// @Router /posts/my [get]
+func (h *PostHandler) MyPosts(c *gin.Context) {
+	userIDStr, ok := c.Get("user_id")
+	if !ok {
+		Unauthorized(c, "invalid token")
+		return
+	}
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		Unauthorized(c, "invalid user ID")
+		return
+	}
+	page := 1
+	if p := c.Query("page"); p != "" {
+		fmt.Sscanf(p, "%d", &page)
+	}
+	pageSize := 20
+	if ps := c.Query("page_size"); ps != "" {
+		fmt.Sscanf(ps, "%d", &pageSize)
+	}
+	result, err := h.svc.GetMyPosts(c.Request.Context(), userID, page, pageSize)
+	if err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
+	Success(c, result)
+}
+
+// DeletePost godoc
+// @Summary Delete a post
+// @Description Delete a post by ID (owner only)
+// @Tags posts
+// @Produce json
+// @Param id path string true "Post ID"
+// @Success 200 {object} Response
+// @Security BearerAuth
+// @Router /posts/{id} [delete]
+func (h *PostHandler) DeletePost(c *gin.Context) {
+	userIDStr, ok := c.Get("user_id")
+	if !ok {
+		Unauthorized(c, "invalid token")
+		return
+	}
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		Unauthorized(c, "invalid user ID")
+		return
+	}
+	postID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		BadRequest(c, "invalid post ID")
+		return
+	}
+	if err := h.svc.DeletePost(c.Request.Context(), userID, postID); err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
+	Success(c, gin.H{"message": "已删除"})
 }
 
 type EventHandler struct {

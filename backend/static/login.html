@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>登录 - 次元链</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;min-height:100vh}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;padding:20px}
+.card{background:#fff;border-radius:24px;padding:48px 32px;text-align:center;box-shadow:0 25px 60px rgba(0,0,0,.3);max-width:420px;width:100%}
+@media(max-width:480px){body{padding:16px}.card{padding:36px 24px;border-radius:20px}}
+.logo{width:72px;height:72px;border-radius:16px;margin:0 auto 24px;display:block;object-fit:cover}
+.badge{width:72px;height:72px;border-radius:16px;margin:0 auto 24px;background:linear-gradient(135deg,#6366F1,#4F46E5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:28px;font-weight:700}
+h1{font-size:24px;font-weight:700;color:#1F2937;margin-bottom:8px}
+.desc{color:#6B7280;font-size:15px;line-height:1.6}
+.btn{display:inline-block;margin-top:12px;padding:14px 48px;background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;text-decoration:none;cursor:pointer}
+.btn-outline{display:inline-block;margin-top:12px;padding:14px 48px;background:#fff;color:#6366F1;border:2px solid #6366F1;border-radius:12px;font-size:16px;font-weight:600;text-decoration:none;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="card">
+<img class="logo" src="/uploads/logo.jpeg" alt="" id="logo">
+<div class="badge" id="fallback-logo" style="display:none">链</div>
+<h1>欢迎登录次元链</h1>
+<p class="desc" id="desc">请在次元链 APP 中登录</p>
+<a class="btn" id="appBtn" href="nexusacg://login" style="display:none">打开 APP 登录</a>
+<a class="btn-outline" id="retryBtn" href="/" style="display:none">返回首页</a>
+</div>
+<script>
+(function(){
+var params=new URLSearchParams(location.search);
+var fromVerify=params.get('from')==='verify';
+
+if(fromVerify){
+document.getElementById('desc').textContent='验证已完成，请登录';
+document.getElementById('appBtn').style.display='inline-block';
+document.getElementById('retryBtn').style.display='inline-block';
+}
+
+// 手机端自动唤起APP
+if(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)){
+setTimeout(function(){window.location.href='nexusacg://login'},500);
+}
+
+document.getElementById('logo').onerror=function(){
+this.style.display='none';
+document.getElementById('fallback-logo').style.display='flex';
+};
+})();
+</script>
+</body>
+</html>

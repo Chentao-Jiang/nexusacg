@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nexusacg/presentation/blocs/auth/auth_bloc.dart';
 import 'package:nexusacg/presentation/blocs/auth/auth_state.dart';
 import 'package:nexusacg/presentation/screens/auth/email_pending_screen.dart';
-import 'package:nexusacg/core/repositories/repositories.dart';
 
 class EmailRegisterScreen extends StatefulWidget {
   const EmailRegisterScreen({super.key});
@@ -50,7 +49,7 @@ class _EmailRegisterScreenState extends State<EmailRegisterScreen> {
           if (state is AuthUnauthenticated) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const EmailPendingScreen(email: _emailCtrl.text.trim())),
+              MaterialPageRoute(builder: (_) => EmailPendingScreen(email: _emailCtrl.text.trim())),
             );
           }
           if (state is AuthError) {

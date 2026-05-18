@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:nexusacg/core/models/models.dart';
 import 'package:nexusacg/core/repositories/repositories.dart';
 import 'package:nexusacg/presentation/screens/community/post_detail_screen.dart';
 import 'package:nexusacg/presentation/screens/community/post_create_screen.dart';
+import 'package:nexusacg/presentation/screens/community/my_posts_screen.dart';
 
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
@@ -27,6 +29,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
 
   Future<void> _loadPosts() async {
     setState(() => _loading = true);
+    _page = 1;
     try {
       final posts = await _repo.getPosts(page: _page);
       setState(() {
@@ -54,22 +57,22 @@ class _CommunityScreenState extends State<CommunityScreen> {
         _page = nextPage;
         _hasMore = posts.length >= 20;
       });
-    } catch (e) {
-      // Ignore load more errors
-    }
-  }
-
-  void _goToDetail(PostModel post) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => PostDetailScreen(post: post)),
-    );
+    } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('社区')),
+      appBar: AppBar(
+        title: const Text('社区'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.article_outlined),
+            tooltip: '我的帖子',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyPostsScreen())),
+          ),
+        ],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -79,19 +82,23 @@ class _CommunityScreenState extends State<CommunityScreen> {
                   : NotificationListener<ScrollNotification>(
                       onNotification: (notification) {
                         if (notification is ScrollEndNotification &&
-                            notification.metrics.pixels >=
-                                notification.metrics.maxScrollExtent * 0.8) {
+                            notification.metrics.pixels >= notification.metrics.maxScrollExtent * 0.8) {
                           _loadMore();
                         }
                         return false;
                       },
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(12),
+                      child: MasonryGridView.count(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
+                        padding: const EdgeInsets.all(8),
                         itemCount: _posts.length,
-                        itemBuilder: (context, index) => GestureDetector(
-                          onTap: () => _goToDetail(_posts[index]),
-                          child: _PostCard(_posts[index]),
-                        ),
+                        itemBuilder: (context, index) => _XhsCard(_posts[index], () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => PostDetailScreen(post: _posts[index])),
+                          );
+                        }),
                       ),
                     ),
             ),
@@ -100,133 +107,99 @@ class _CommunityScreenState extends State<CommunityScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const PostCreateScreen()),
-          ).then((_) => _loadPosts()); // Refresh after post
+          ).then((_) => _loadPosts());
         },
-        child: const Icon(Icons.edit),
+        child: const Icon(Icons.add),
       ),
     );
   }
 }
 
-class _PostCard extends StatelessWidget {
+class _XhsCard extends StatelessWidget {
   final PostModel post;
-  const _PostCard(this.post);
+  final VoidCallback onTap;
+
+  const _XhsCard(this.post, this.onTap);
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    final hasImage = post.images.isNotEmpty;
+    final hasVideo = post.videoUrl != null;
+    return GestureDetector(
+      onTap: onTap,
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        elevation: 1,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundImage: post.author?.avatarUrl != null
-                      ? CachedNetworkImageProvider(post.author!.avatarUrl!)
-                      : null,
-                  child: post.author?.avatarUrl == null ? const Icon(Icons.person) : null,
+            // Cover image or text card
+            if (hasImage)
+              CachedNetworkImage(
+                imageUrl: post.images.first,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                placeholder: (_, __) => Container(
+                  height: 150 + (indexOf(0) % 3) * 40.0,
+                  color: Colors.grey.shade200,
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  post.author?.nickname ?? '用户',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                errorWidget: (_, __, ___) => Container(
+                  height: 150,
+                  color: Colors.grey.shade200,
+                  child: const Icon(Icons.broken_image, color: Colors.grey),
                 ),
-                const Spacer(),
-                Text(_timeAgo(post.createdAt), style: const TextStyle(color: Colors.grey, fontSize: 12)),
-              ],
-            ),
-            if (post.title.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(post.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            ],
-            const SizedBox(height: 8),
-            Text(post.content, maxLines: 5, overflow: TextOverflow.ellipsis),
-
-            // Video thumbnail
-            if (post.videoUrl != null) ...[
-              const SizedBox(height: 8),
-              Stack(
+              )
+            else if (hasVideo)
+              Container(
+                height: 150,
+                color: Colors.black12,
+                child: const Center(
+                  child: Icon(Icons.play_circle_fill, size: 48, color: Colors.white70),
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  post.content,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 14, height: 1.4),
+                ),
+              ),
+            // Bottom info
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    height: 200,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.black,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Center(
-                      child: Icon(Icons.play_circle_outline, size: 48, color: Colors.white70),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(4),
+                  if (post.title.isNotEmpty)
+                    Text(post.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 10,
+                        backgroundImage: post.author?.avatarUrl != null
+                            ? CachedNetworkImageProvider(post.author!.avatarUrl!)
+                            : null,
+                        child: post.author?.avatarUrl == null ? const Icon(Icons.person, size: 12) : null,
                       ),
-                      child: const Text(
-                        '视频',
-                        style: TextStyle(color: Colors.white, fontSize: 12),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(post.author?.nickname ?? '用户',
+                            style: const TextStyle(color: Colors.grey, fontSize: 11),
+                            overflow: TextOverflow.ellipsis),
                       ),
-                    ),
+                      const Icon(Icons.favorite_border, size: 12, color: Colors.grey),
+                      const SizedBox(width: 2),
+                      Text('${post.likeCount}', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                    ],
                   ),
                 ],
               ),
-            ],
-
-            // Images
-            if (post.images.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 180,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: post.images.length,
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: CachedNetworkImage(
-                          imageUrl: post.images[index],
-                          width: 180,
-                          fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(width: 180, color: Colors.grey.shade200),
-                          errorWidget: (_, __, ___) => Container(width: 180, color: Colors.grey.shade200, child: const Icon(Icons.error)),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-            if (post.tags.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                children: post.tags.map((t) => Chip(
-                  label: Text('#$t', style: const TextStyle(fontSize: 11)),
-                  padding: EdgeInsets.zero,
-                  visualDensity: VisualDensity.compact,
-                )).toList(),
-              ),
-            ],
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                _actionButton(Icons.favorite_border, '${post.likeCount}'),
-                const SizedBox(width: 24),
-                _actionButton(Icons.chat_bubble_outline, '${post.commentCount}'),
-                const Spacer(),
-                _actionButton(Icons.share, '分享'),
-              ],
             ),
           ],
         ),
@@ -234,24 +207,5 @@ class _PostCard extends StatelessWidget {
     );
   }
 
-  Widget _actionButton(IconData icon, String label) {
-    return InkWell(
-      onTap: () {},
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: Colors.grey),
-          const SizedBox(width: 4),
-          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
-        ],
-      ),
-    );
-  }
-
-  String _timeAgo(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 1) return '刚刚';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}分钟前';
-    if (diff.inHours < 24) return '${diff.inHours}小时前';
-    return '${diff.inDays}天前';
-  }
+  int indexOf(int fallback) => 0;
 }

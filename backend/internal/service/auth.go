@@ -354,18 +354,24 @@ func (s *AuthService) QQOAuthLogin(ctx context.Context, qq *QQOAuthService, code
 }
 
 // SMSLogin finds or creates a user by phone number and returns JWT tokens.
-func (s *AuthService) SMSLogin(ctx context.Context, phone string) (*TokenPair, error) {
+func (s *AuthService) SMSLogin(ctx context.Context, phone, password, nickname string) (*TokenPair, error) {
 	var user model.User
 	err := s.db.Where("phone = ? AND status = ?", phone, "active").First(&user).Error
 	if err == gorm.ErrRecordNotFound {
-		// Auto-register: create new user with phone
+		// Auto-register: create new user with phone + password
 		phoneRef := phone
+		hash, hashErr := bcrypt.GenerateFromPassword([]byte(password), 12)
+		if hashErr != nil {
+			return nil, fmt.Errorf("failed to hash password: %w", hashErr)
+		}
+		hashStr := string(hash)
 		user = model.User{
-			ID:       uuid.New(),
-			Phone:    &phoneRef,
-			Nickname: phone[:3] + "****" + phone[len(phone)-4:],
-			Role:     "user",
-			Status:   "active",
+			ID:           uuid.New(),
+			Phone:        &phoneRef,
+			PasswordHash: &hashStr,
+			Nickname:     nickname,
+			Role:         "user",
+			Status:       "active",
 		}
 		if createErr := s.db.Create(&user).Error; createErr != nil {
 			return nil, fmt.Errorf("failed to create user: %w", createErr)
@@ -379,4 +385,44 @@ func (s *AuthService) SMSLogin(ctx context.Context, phone string) (*TokenPair, e
 	}
 
 	return s.generateTokens(&user)
+}
+
+// GetMe returns the user by ID.
+func (s *AuthService) GetMe(ctx context.Context, userID uuid.UUID) (*model.User, error) {
+	var user model.User
+	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
+		return nil, fmt.Errorf("user not found")
+	}
+	if user.Status != "active" {
+		return nil, fmt.Errorf("user account is not active")
+	}
+	return &user, nil
+}
+
+// UpdateProfileInput contains updatable profile fields.
+type UpdateProfileInput struct {
+	Nickname  string
+	Bio       *string
+	AvatarURL *string
+}
+
+// UpdateProfile updates the user's nickname, bio, and avatar.
+func (s *AuthService) UpdateProfile(ctx context.Context, userID uuid.UUID, input UpdateProfileInput) (*model.User, error) {
+	updates := map[string]interface{}{}
+	if input.Nickname != "" {
+		updates["nickname"] = input.Nickname
+	}
+	if input.Bio != nil {
+		updates["bio"] = *input.Bio
+	}
+	if input.AvatarURL != nil {
+		updates["avatar_url"] = *input.AvatarURL
+	}
+	if len(updates) == 0 {
+		return nil, fmt.Errorf("no fields to update")
+	}
+	if err := s.db.Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error; err != nil {
+		return nil, fmt.Errorf("failed to update profile: %w", err)
+	}
+	return s.GetMe(ctx, userID)
 }

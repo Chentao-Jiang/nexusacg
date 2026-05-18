@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net/smtp"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -88,8 +87,7 @@ func (s *EmailService) ResendToken(email string) (uuid.UUID, error) {
 // SendVerificationEmail sends the verification email via SMTP.
 // Falls back to console output in development if SMTP is not configured.
 func (s *EmailService) SendVerificationEmail(email, token string) error {
-	baseURL := strings.TrimRight(s.cfg.BaseURL, "/")
-	verifyURL := fmt.Sprintf("%s/verify?token=%s", baseURL, token)
+	verifyURL := fmt.Sprintf("nexusacg://verify?token=%s", token)
 
 	subject := "【次元链】请验证您的邮箱"
 	body := fmt.Sprintf(`<!DOCTYPE html>

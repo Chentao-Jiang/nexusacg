@@ -16,21 +16,24 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _phoneCtrl = TextEditingController();
+  final _accountCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _obscure = true;
 
   @override
   void dispose() {
-    _phoneCtrl.dispose();
+    _accountCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
   }
 
   void _handleLogin() {
     if (!_formKey.currentState!.validate()) return;
+    final account = _accountCtrl.text.trim();
+    final isEmail = account.contains('@');
     context.read<AuthBloc>().add(AuthLoginRequested(
-      phone: _phoneCtrl.text.trim(),
+      phone: isEmail ? null : account,
+      email: isEmail ? account : null,
       password: _passwordCtrl.text,
     ));
   }
@@ -63,7 +66,20 @@ class _LoginScreenState extends State<LoginScreen> {
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthError) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message)));
+            final msg = state.message;
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(msg),
+                duration: const Duration(seconds: 5),
+                action: msg.contains('邮箱未验证') || msg.contains('验证邮件')
+                    ? SnackBarAction(
+                        label: '重新发送',
+                        onPressed: () => _resendVerificationEmail(),
+                      )
+                    : null,
+              ),
+            );
           }
         },
         child: SafeArea(
@@ -82,13 +98,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       children: [
                         TextFormField(
-                          controller: _phoneCtrl,
+                          controller: _accountCtrl,
                           decoration: const InputDecoration(
-                            hintText: '手机号',
-                            prefixIcon: Icon(Icons.phone),
+                            hintText: '手机号/邮箱',
+                            prefixIcon: Icon(Icons.person),
                           ),
-                          keyboardType: TextInputType.phone,
-                          validator: (v) => v == null || v.isEmpty ? '请输入手机号' : null,
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (v) => v == null || v.isEmpty ? '请输入手机号或邮箱' : null,
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
@@ -167,6 +183,30 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _resendVerificationEmail() async {
+    final email = _accountCtrl.text.trim();
+    if (!email.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请在账号栏输入邮箱地址后重试')),
+      );
+      return;
+    }
+    try {
+      await AuthRepository().resendEmailVerification(email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('验证邮件已重新发送，请查收邮箱')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('发送失败: $e')),
+        );
+      }
+    }
   }
 
   Widget _socialButton(IconData icon, String label, VoidCallback onTap) {
