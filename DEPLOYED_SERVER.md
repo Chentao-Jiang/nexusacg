@@ -142,13 +142,14 @@ ssh root@101.133.169.72 "curl -s http://localhost:8080/health && docker logs --t
 | 2026-05-19 | 邮箱未验证用户登录无反应（无重发入口） | `login_screen.dart` 检测"邮箱未验证"错误时显示重发按钮，`AuthRepository` 新增 `resendEmailVerification` |
 | 2026-05-19 | 无法查看/管理自己的帖子 | 后端新增 `GET /posts/my` + `DELETE /posts/:id`；前端新增 `MyPostsScreen` + 个人中心菜单项"我的帖子" |
 | 2026-05-19 | 社区页面为"朋友圈"风格，需改为小红书风格 | `community_screen.dart` 全面重写为瀑布流网格布局（MasonryGridView），含封面图、视频缩略图、作者信息 |
+| 2026-05-19 | v0.1.3 全面测试 + 代码清理 | 公网 API 全面测试通过（注册/登录/me/profile/products/posts/my/upload/orders/events），修复 22 个 Dart analyzer 警告，GitHub 同步，后端编译通过 |
 
 ## APK 信息
-- Release APK: `/home/jct/nexusacg/次元链-v0.1.2-release.apk`
-- 大小: 18.7MB
+- Release APK: `/home/jct/nexusacg/次元链-v0.1.3-release.apk`
+- 大小: 26.3MB
 - API 地址: `http://101.133.169.72:8080/api/v1`
-- 版本: 0.1.2
-- 构建时间: 2026-05-19
+- 版本: 0.1.3
+- 构建时间: 2026-05-19 05:08
 - **注意**: 安装前需先卸载旧版本
 
 ## DB 密码重置方法（容器重建后）
