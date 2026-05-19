@@ -391,6 +391,14 @@ func (s *AuthService) SMSLogin(ctx context.Context, phone, password, nickname st
 	return &user, tokens, nil
 }
 
+
+// PhoneExists checks if a phone number is already registered.
+func (s *AuthService) PhoneExists(phone string) bool {
+	var count int64
+	s.db.Model(&model.User{}).Where("phone = ?", phone).Count(&count)
+	return count > 0
+}
+
 // GetMe returns the user by ID.
 func (s *AuthService) GetMe(ctx context.Context, userID uuid.UUID) (*model.User, error) {
 	var user model.User

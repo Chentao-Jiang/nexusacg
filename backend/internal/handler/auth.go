@@ -231,6 +231,12 @@ func (h *AuthHandler) SMSSendCode(c *gin.Context) {
 		return
 	}
 
+	// Check if phone is already registered
+	if h.svc.PhoneExists(req.Phone) {
+		BadRequest(c, "该手机号已注册，请直接登录")
+		return
+	}
+
 	if err := h.smsSvc.SendVerificationCode(req.Phone); err != nil {
 		BadRequest(c, err.Error())
 		return
