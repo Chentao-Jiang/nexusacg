@@ -87,7 +87,13 @@ func (s *EmailService) ResendToken(email string) (uuid.UUID, error) {
 // SendVerificationEmail sends the verification email via SMTP.
 // Falls back to console output in development if SMTP is not configured.
 func (s *EmailService) SendVerificationEmail(email, token string) error {
-	verifyURL := fmt.Sprintf("nexusacg://verify?token=%s", token)
+	// Use HTTP URL pointing to the server's /verify page — works in all email clients
+	// (deep links like nexusacg:// are blocked by most email clients)
+	baseURL := s.cfg.BaseURL
+	if baseURL == "" {
+		baseURL = "http://localhost:8080"
+	}
+	verifyURL := fmt.Sprintf("%s/verify?token=%s", baseURL, token)
 
 	subject := "【次元链】请验证您的邮箱"
 	body := fmt.Sprintf(`<!DOCTYPE html>

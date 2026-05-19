@@ -15,6 +15,7 @@ class _EmailPendingScreenState extends State<EmailPendingScreen> {
   final _authRepo = AuthRepository();
   Timer? _pollTimer;
   bool _checking = false;
+  bool _resending = false;
 
   @override
   void initState() {
@@ -52,6 +53,26 @@ class _EmailPendingScreenState extends State<EmailPendingScreen> {
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (_) => false,
     );
+  }
+
+  Future<void> _resendEmail() async {
+    setState(() => _resending = true);
+    try {
+      await _authRepo.resendEmailVerification(widget.email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('验证邮件已重新发送，请查收')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('发送失败: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _resending = false);
+    }
   }
 
   @override
@@ -121,7 +142,21 @@ class _EmailPendingScreenState extends State<EmailPendingScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  TextButton(onPressed: _checkStatus, child: const Text('检查验证状态')),
+                  TextButton(
+                    onPressed: _checking ? null : _checkStatus,
+                    child: const Text('检查验证状态'),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _resending ? null : _resendEmail,
+                      icon: _resending
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.refresh),
+                      label: const Text('重新发送验证邮件'),
+                    ),
+                  ),
                 ],
               ),
             ),

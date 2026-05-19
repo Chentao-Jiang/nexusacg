@@ -7,6 +7,7 @@ import 'package:nexusacg/presentation/screens/orders/orders_screen.dart';
 import 'package:nexusacg/presentation/screens/settings/settings_screen.dart';
 import 'package:nexusacg/presentation/screens/community/my_posts_screen.dart';
 import 'package:nexusacg/presentation/screens/profile/edit_profile_screen.dart';
+import 'package:nexusacg/presentation/screens/certification/certification_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -96,7 +97,9 @@ class ProfileScreen extends StatelessWidget {
                 _menuItem(Icons.local_offer, '我的商品', onTap: () => _showComingSoon(context, '我的商品')),
                 _menuItem(Icons.bookmark, '我的预约', onTap: () => _showComingSoon(context, '我的预约')),
                 const Divider(),
-                _menuItem(Icons.store, '我要入驻', subtitle: '妆娘/摄影师/摊主', onTap: () => _showComingSoon(context, '商家入驻')),
+                _menuItem(Icons.store, '我要入驻', subtitle: '妆娘/摄影师/摊主', onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const CertificationScreen()));
+                }),
                 _menuItem(Icons.settings, '设置', onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
                 }),

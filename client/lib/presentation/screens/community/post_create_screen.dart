@@ -26,7 +26,6 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
   final _repo = PostRepository();
   final _imagePicker = ImagePicker();
   final List<_UploadedImage> _images = [];
-  final List<String> _uploadedVideoUrls = [];
   String? _videoUrl;
   String _visibility = 'public'; // public | followers | private
   bool _submitting = false;
@@ -86,10 +85,17 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
     try {
       final url = await ApiClient().uploadVideo(file);
       if (mounted) {
-        setState(() {
-          _videoUrl = url;
-          _uploadingAny = false;
-        });
+        if (url != null) {
+          setState(() {
+            _videoUrl = url;
+            _uploadingAny = false;
+          });
+        } else {
+          setState(() => _uploadingAny = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('视频上传失败：服务器未返回URL')),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {

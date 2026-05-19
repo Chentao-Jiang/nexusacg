@@ -82,7 +82,10 @@ class ApiClient {
       onSendProgress: onProgress,
     );
     final data = response.data;
-    if (data is Map && data['url'] != null) return data['url'] as String;
+    if (data is Map && data['code'] == 0 && data['data'] != null) {
+      final inner = data['data'] as Map;
+      return inner['url'] as String?;
+    }
     return null;
   }
 
@@ -96,7 +99,10 @@ class ApiClient {
       options: Options(headers: {'Content-Type': 'multipart/form-data'}),
     );
     final data = response.data;
-    if (data is Map && data['url'] != null) return data['url'] as String;
+    if (data is Map && data['code'] == 0 && data['data'] != null) {
+      final inner = data['data'] as Map;
+      return inner['url'] as String?;
+    }
     return null;
   }
 }
