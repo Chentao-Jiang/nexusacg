@@ -62,9 +62,8 @@ class _CertificationScreenState extends State<CertificationScreen> {
       imageQuality: 85,
     );
     if (picked != null) {
-      final file = File(picked.path);
-      if (!mounted) return;
       if (_portfolioFiles.length >= 10) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('最多上传10张作品图片')),
         );

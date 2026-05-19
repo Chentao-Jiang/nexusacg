@@ -147,6 +147,9 @@ ssh root@101.133.169.72 "curl -s http://localhost:8080/health && docker logs --t
 | 2026-05-19 | 邮箱验证邮件中的 deep link 无法被点击 | `email.go` 验证链接从 `nexusacg://verify` 改为 HTTP URL `%s/verify?token=%s`（BASE_URL + /verify），所有邮箱客户端均可正常打开 |
 | 2026-05-19 | 邮箱注册等待页无"重新发送"按钮 | `email_pending_screen.dart` 添加"重新发送验证邮件"按钮，调用 `AuthRepository.resendEmailVerification` |
 | 2026-05-19 | 视频上传失败无提示 | `post_create_screen.dart` 添加 `uploadVideo` 返回 null 时的错误提示 |
+| 2026-05-19 | "我要入驻"菜单点击无反应（缺少入驻表单） | 新建 `certification_screen.dart`，实现商家入驻（店铺名称+营业执照上传）和服务者入驻（服务类型下拉框+描述+作品图片最多10张）双模式表单，提交至对应认证 API；`profile_screen.dart` 菜单项接入 |
+| 2026-05-20 | 社区上传视频后无显示（转圈后消失） | `api_client.dart` 的 `uploadVideo` 添加 `contentType: DioMediaType.parse('video/mp4')`，后端因缺少 MIME 类型拒绝上传 |
+| 2026-05-20 | 邮箱登录无反应 | `login_screen.dart` 的 BlocListener 新增 `AuthAuthenticated` 状态处理（显示登录成功提示）；`auth_bloc.dart` 添加 `result` 类型守卫防止非 Map 响应崩溃 |
 
 ## APK 信息
 - Release APK: `/home/jct/nexusacg/client/build/app/outputs/flutter-apk/app-release.apk`

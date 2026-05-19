@@ -24,15 +24,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         password: event.password,
       );
 
-      if (result['code'] == 0 && result['data'] != null) {
+      if (result is Map && result['code'] == 0 && result['data'] != null) {
         final token = result['data']['access_token'] as String;
         final user = result['data']['user'] != null
             ? UserModel.fromJson(result['data']['user'])
             : UserModel(id: '', nickname: '用户', role: 'user');
         ApiClient().accessToken = token;
         emit(AuthAuthenticated(user: user, accessToken: token));
-      } else {
+      } else if (result is Map) {
         emit(AuthError(result['message'] as String? ?? '登录失败'));
+      } else {
+        emit(AuthError('登录失败: 服务器响应异常'));
       }
     } catch (e) {
       emit(AuthError('登录失败: ${e.toString()}'));

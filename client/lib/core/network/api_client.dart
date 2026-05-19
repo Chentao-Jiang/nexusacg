@@ -70,7 +70,7 @@ class ApiClient {
 
   Future<String?> uploadVideo(File file, {void Function(int, int)? onProgress}) async {
     final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(file.path),
+      'file': await MultipartFile.fromFile(file.path, contentType: DioMediaType.parse('video/mp4')),
     });
     final response = await _dio.post(
       '/upload/video',
