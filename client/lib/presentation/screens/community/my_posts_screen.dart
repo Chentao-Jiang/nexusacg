@@ -210,55 +210,107 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                     itemCount: _posts.length,
                     itemBuilder: (context, index) {
                       final post = _posts[index];
+                      final hasCover = post.images.isNotEmpty;
+                      final hasVideo = post.videoUrl != null;
                       return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: ListTile(
-                          leading: post.images.isNotEmpty
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: CachedNetworkImage(
-                                    imageUrl: post.images.first,
-                                    width: 56, height: 56, fit: BoxFit.cover,
-                                    errorWidget: (_, __, ___) => Container(width: 56, height: 56, color: Colors.grey.shade200),
+                        margin: const EdgeInsets.only(bottom: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        elevation: 0,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: Row(
+                              children: [
+                                // Thumbnail / video preview
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: SizedBox(
+                                    width: 72, height: 72,
+                                    child: hasCover
+                                        ? Stack(
+                                            fit: StackFit.expand,
+                                            children: [
+                                              CachedNetworkImage(
+                                                imageUrl: post.images.first,
+                                                fit: BoxFit.cover,
+                                                errorWidget: (_, __, ___) => Container(color: Colors.grey.shade200),
+                                              ),
+                                              if (hasVideo)
+                                                const Positioned(
+                                                  right: 4, bottom: 4,
+                                                  child: Icon(Icons.play_circle_filled, size: 22, color: Colors.white70),
+                                                ),
+                                            ],
+                                          )
+                                        : hasVideo
+                                            ? Container(
+                                                decoration: const BoxDecoration(
+                                                  gradient: LinearGradient(
+                                                    begin: Alignment.topLeft,
+                                                    end: Alignment.bottomRight,
+                                                    colors: [Color(0xFF2D2D3F), Color(0xFF1A1A2E)],
+                                                  ),
+                                                ),
+                                                child: const Icon(Icons.play_circle_filled, size: 28, color: Colors.white54),
+                                              )
+                                            : Container(color: Colors.grey.shade100),
                                   ),
-                                )
-                              : post.videoUrl != null
-                                  ? const SizedBox(width: 56, height: 56, child: Icon(Icons.video_file, size: 32, color: Colors.blue))
-                                  : null,
-                          title: Row(
-                            children: [
-                              Expanded(
-                                child: Text(post.title.isNotEmpty ? post.title : post.content, maxLines: 2, overflow: TextOverflow.ellipsis),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade200,
-                                  borderRadius: BorderRadius.circular(4),
                                 ),
-                                child: Text(
-                                  _visibilityLabel(post.visibility),
-                                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                const SizedBox(width: 12),
+                                // Content
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        post.title.isNotEmpty ? post.title : post.content,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            '${post.likeCount} 赞  ${post.commentCount} 评论',
+                                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey.shade100,
+                                              borderRadius: BorderRadius.circular(3),
+                                            ),
+                                            child: Text(
+                                              _visibilityLabel(post.visibility),
+                                              style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          subtitle: Text('${post.likeCount} 赞  ${post.commentCount} 评论  ${post.status}',
-                              style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                          trailing: PopupMenuButton<String>(
-                            onSelected: (action) {
-                              switch (action) {
-                                case 'edit': _editPost(post); break;
-                                case 'visibility': _changeVisibility(post); break;
-                                case 'delete': _deletePost(post.id); break;
-                              }
-                            },
-                            itemBuilder: (_) => [
-                              const PopupMenuItem(value: 'edit', child: Text('编辑')),
-                              const PopupMenuItem(value: 'visibility', child: Text('修改可见范围')),
-                              const PopupMenuItem(value: 'delete', child: Text('删除', style: TextStyle(color: Colors.red))),
-                            ],
+                                // Menu
+                                PopupMenuButton<String>(
+                                  icon: const Icon(Icons.more_horiz, size: 20),
+                                  onSelected: (action) {
+                                    switch (action) {
+                                      case 'edit': _editPost(post); break;
+                                      case 'visibility': _changeVisibility(post); break;
+                                      case 'delete': _deletePost(post.id); break;
+                                    }
+                                  },
+                                  itemBuilder: (_) => [
+                                    const PopupMenuItem(value: 'edit', child: Text('编辑')),
+                                    const PopupMenuItem(value: 'visibility', child: Text('修改可见范围')),
+                                    const PopupMenuItem(value: 'delete', child: Text('删除', style: TextStyle(color: Colors.red))),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       );

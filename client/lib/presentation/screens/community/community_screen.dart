@@ -125,102 +125,149 @@ class _XhsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasImage = post.images.isNotEmpty;
     final hasVideo = post.videoUrl != null;
+    final coverUrl = hasImage ? post.images.first : null;
+
     return GestureDetector(
       onTap: onTap,
       child: Card(
         clipBehavior: Clip.antiAlias,
-        elevation: 1,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: EdgeInsets.zero,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            if (hasImage)
-              CachedNetworkImage(
-                imageUrl: post.images.first,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                placeholder: (_, __) => Container(
-                  height: 150,
-                  color: Colors.grey.shade200,
-                ),
-                errorWidget: (_, __, ___) => Container(
-                  height: 150,
-                  color: Colors.grey.shade200,
-                  child: const Icon(Icons.broken_image, color: Colors.grey),
-                ),
-              ),
-            if (!hasImage && hasVideo)
-              Container(
-                height: 180,
-                color: Colors.grey.shade900,
-                child: const Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.play_circle_filled, size: 48, color: Colors.white70),
-                      SizedBox(height: 4),
-                      Text('视频', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                    ],
-                  ),
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // Cover image / video thumbnail
+            if (coverUrl != null)
+              Stack(
                 children: [
-                  if (hasVideo && hasImage)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: Colors.black54,
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.play_arrow, size: 12, color: Colors.white),
-                                SizedBox(width: 2),
-                                Text('视频', style: TextStyle(color: Colors.white, fontSize: 10)),
-                              ],
-                            ),
-                          ),
-                        ],
+                  CachedNetworkImage(
+                    imageUrl: coverUrl,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    placeholder: (_, __) => Container(
+                      color: Colors.grey.shade100,
+                    ),
+                    errorWidget: (_, __, ___) => Container(
+                      height: 120,
+                      color: Colors.grey.shade100,
+                      child: const Icon(Icons.broken_image, color: Colors.grey),
+                    ),
+                  ),
+                  // Play icon overlay for video posts
+                  if (hasVideo)
+                    Positioned(
+                      left: 6, bottom: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.play_arrow, size: 14, color: Colors.white),
+                            SizedBox(width: 2),
+                            Text('视频', style: TextStyle(color: Colors.white, fontSize: 10)),
+                          ],
+                        ),
                       ),
                     ),
-                  if (post.title.isNotEmpty)
-                    Text(post.title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
-                  if (!hasImage && !hasVideo && post.title.isEmpty)
-                    Text(
-                      post.content,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 14, height: 1.4),
+                  // Like count badge
+                  if (post.likeCount > 0)
+                    Positioned(
+                      right: 4, top: 4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.black38,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.favorite, size: 10, color: Colors.white),
+                            const SizedBox(width: 3),
+                            Text('${post.likeCount}', style: const TextStyle(color: Colors.white, fontSize: 10)),
+                          ],
+                        ),
+                      ),
                     ),
-                  const SizedBox(height: 4),
+                ],
+              )
+            else if (hasVideo)
+              // Legacy: video without thumbnail
+              Container(
+                height: 120,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF2D2D3F), Color(0xFF1A1A2E)],
+                  ),
+                ),
+                child: const Center(
+                  child: Icon(Icons.play_circle_filled, size: 40, color: Colors.white54),
+                ),
+              )
+            else
+              // Text-only card
+              Container(
+                padding: const EdgeInsets.all(12),
+                constraints: const BoxConstraints(minHeight: 70),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFFFFF5E6), Color(0xFFFFF0D0)],
+                  ),
+                ),
+                child: Text(
+                  post.content,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13, height: 1.5, color: Color(0xFF5D4037)),
+                ),
+              ),
+            // Footer
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (post.title.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        post.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, height: 1.3),
+                      ),
+                    ),
                   Row(
                     children: [
                       CircleAvatar(
-                        radius: 10,
+                        radius: 9,
                         backgroundImage: post.author?.avatarUrl != null
                             ? CachedNetworkImageProvider(post.author!.avatarUrl!)
                             : null,
-                        child: post.author?.avatarUrl == null ? const Icon(Icons.person, size: 12) : null,
+                        child: post.author?.avatarUrl == null ? const Icon(Icons.person, size: 11) : null,
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 5),
                       Expanded(
-                        child: Text(post.author?.nickname ?? '用户',
-                            style: const TextStyle(color: Colors.grey, fontSize: 11),
-                            overflow: TextOverflow.ellipsis),
+                        child: Text(
+                          post.author?.nickname ?? '用户',
+                          style: const TextStyle(color: Color(0xFF999999), fontSize: 11),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      const Icon(Icons.favorite_border, size: 12, color: Colors.grey),
+                      const Icon(Icons.favorite_border, size: 13, color: Color(0xFFCCCCCC)),
                       const SizedBox(width: 2),
-                      Text('${post.likeCount}', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                      Text('${post.likeCount}', style: const TextStyle(color: Color(0xFFCCCCCC), fontSize: 11)),
                     ],
                   ),
                 ],
