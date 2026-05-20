@@ -150,13 +150,16 @@ ssh root@101.133.169.72 "curl -s http://localhost:8080/health && docker logs --t
 | 2026-05-19 | "我要入驻"菜单点击无反应（缺少入驻表单） | 新建 `certification_screen.dart`，实现商家入驻（店铺名称+营业执照上传）和服务者入驻（服务类型下拉框+描述+作品图片最多10张）双模式表单，提交至对应认证 API；`profile_screen.dart` 菜单项接入 |
 | 2026-05-20 | 社区上传视频后无显示（转圈后消失） | `api_client.dart` 的 `uploadVideo` 添加 `contentType: DioMediaType.parse('video/mp4')`，后端因缺少 MIME 类型拒绝上传 |
 | 2026-05-20 | 邮箱登录无反应 | `login_screen.dart` 的 BlocListener 新增 `AuthAuthenticated` 状态处理（显示登录成功提示）；`auth_bloc.dart` 添加 `result` 类型守卫防止非 Map 响应崩溃 |
+| 2026-05-20 | APK 构建失败: Gradle Daemon 卡死 | WSL2 swap 耗尽导致 Daemon 挂起；需重启 WSL2 释放内存后再构建 |
+| 2026-05-20 | APK 构建失败: jlink 不存在 | OpenJDK 缺少 jlink，改用 Oracle JDK 17 (`JAVA_HOME=/home/jct/jdks/jdk-17.0.12`) 构建 |
 
 ## APK 信息
 - Release APK: `/home/jct/nexusacg/client/build/app/outputs/flutter-apk/app-release.apk`
-- 大小: 26.5MB
+- 大小: 11.2MB (arm64-only)
 - API 地址: `http://101.133.169.72:8080/api/v1`
-- 版本: 0.1.4
-- 构建时间: 2026-05-19 19:13
+- 版本: 0.1.5
+- 构建时间: 2026-05-20 22:43
+- 构建命令: `JAVA_HOME=/home/jct/jdks/jdk-17.0.12 flutter build apk --release --target-platform=android-arm64`
 - **注意**: 安装前需先卸载旧版本
 
 ## DB 密码重置方法（容器重建后）
