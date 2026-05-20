@@ -155,6 +155,7 @@ ssh root@101.133.169.72 "curl -s http://localhost:8080/health && docker logs --t
 | 2026-05-21 | SSH 连接全挂（端口通但认证阶段卡死） | 默认 kex 算法 `sntrup761x25519-sha512` 在服务端 ECDH 响应阶段挂死；SSH 命令添加 `-o KexAlgorithms=curve25519-sha256` 绕过 |
 | 2026-05-21 | 后端部署（视频上传 MIME 类型修复 + 邮箱登录修复 + auth_bloc 类型守卫） | 本地交叉编译 → scp（带 kex 参数）上传 → docker stop + docker cp + docker start 替换容器内二进制 → 健康检查通过 |
 | 2026-05-21 | 上传视频后显示"此视频无法播放" | `post_detail_screen.dart` 视频播放器添加 `_videoError` 状态 + 错误 UI 显示 + 重试按钮 + `setLooping(true)`，构建 APK v0.1.6 |
+| 2026-05-21 | 视频播放 Media error (unknown) — HTTP 明文流量被 Android 禁止 | `AndroidManifest.xml` 添加 `android:usesCleartextTraffic="true"`，原生 ExoPlayer 默认拒绝 http:// 视频 URL，构建 APK v0.1.7 |
 
 ## APK 信息
 - Release APK: `/home/jct/nexusacg/client/build/app/outputs/flutter-apk/app-release.apk`
