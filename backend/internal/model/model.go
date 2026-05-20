@@ -135,6 +135,15 @@ type Like struct {
 
 func (Like) TableName() string { return "likes" }
 
+type Follow struct {
+	ID          uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	FollowerID  uuid.UUID `json:"follower_id" gorm:"type:uuid;uniqueIndex:idx_follow;not null"`
+	FollowingID uuid.UUID `json:"following_id" gorm:"type:uuid;uniqueIndex:idx_follow;not null"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func (Follow) TableName() string { return "follows" }
+
 type Group struct {
 	ID          uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	Name        string    `json:"name"`

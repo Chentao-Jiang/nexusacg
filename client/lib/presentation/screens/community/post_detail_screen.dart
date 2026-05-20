@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:nexusacg/core/models/models.dart';
 import 'package:nexusacg/core/repositories/repositories.dart';
+import 'package:nexusacg/core/repositories/follow_repository.dart';
 import 'package:video_player/video_player.dart';
 
 class PostDetailScreen extends StatefulWidget {
@@ -19,8 +20,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   String _videoErrorMessage = '';
   bool _playing = false;
   final _repo = PostRepository();
+  final _followRepo = FollowRepository();
   late bool _liked;
   late bool _collected;
+  late bool _isFollowing;
   int _currentImageIndex = 0;
 
   @override
@@ -28,7 +31,28 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     super.initState();
     _liked = false;
     _collected = false;
+    _isFollowing = false;
     _initVideo();
+    _checkFollow();
+  }
+
+  Future<void> _checkFollow() async {
+    if (widget.post.author?.id != null) {
+      final following = await _followRepo.isFollowing(widget.post.author!.id!);
+      if (mounted) setState(() => _isFollowing = following);
+    }
+  }
+
+  Future<void> _toggleFollow() async {
+    final authorId = widget.post.author?.id;
+    if (authorId == null) return;
+    if (_isFollowing) {
+      await _followRepo.unfollow(authorId);
+      if (mounted) setState(() => _isFollowing = false);
+    } else {
+      await _followRepo.follow(authorId);
+      if (mounted) setState(() => _isFollowing = true);
+    }
   }
 
   void _initVideo() {
@@ -117,16 +141,16 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             ),
             const SizedBox(width: 8),
             OutlinedButton(
-              onPressed: () {},
+              onPressed: _toggleFollow,
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                side: const BorderSide(color: Colors.red),
-                foregroundColor: Colors.red,
+                side: BorderSide(color: _isFollowing ? Colors.grey : Colors.red),
+                foregroundColor: _isFollowing ? Colors.grey : Colors.red,
                 textStyle: const TextStyle(fontSize: 12),
               ),
-              child: const Text('关注'),
+              child: Text(_isFollowing ? '已关注' : '关注'),
             ),
           ],
         ),
