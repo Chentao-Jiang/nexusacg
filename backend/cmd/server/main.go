@@ -248,8 +248,8 @@ func main() {
 		Addr:              ":" + cfg.Port,
 		Handler:           r,
 		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      30 * time.Second,
+		ReadTimeout:       5 * time.Minute, // Allow time for video uploads on slow connections
+		WriteTimeout:      5 * time.Minute, // Allow time for large response bodies
 		IdleTimeout:       60 * time.Second,
 	}
 
