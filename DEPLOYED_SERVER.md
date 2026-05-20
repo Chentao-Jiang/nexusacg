@@ -161,8 +161,8 @@ ssh root@101.133.169.72 "curl -s http://localhost:8080/health && docker logs --t
 - Release APK: `/home/jct/nexusacg/client/build/app/outputs/flutter-apk/app-release.apk`
 - 大小: 11.2MB (arm64-only)
 - API 地址: `http://101.133.169.72:8080/api/v1`
-- 版本: 0.1.5
-- 构建时间: 2026-05-20 22:43
+- 版本: 0.1.7
+- 构建时间: 2026-05-21 01:15
 - 构建命令: `JAVA_HOME=/home/jct/jdks/jdk-17.0.12 flutter build apk --release --target-platform=android-arm64`
 - **注意**: 安装前需先卸载旧版本
 
