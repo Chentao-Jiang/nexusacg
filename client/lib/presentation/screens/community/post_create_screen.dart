@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:video_compress/video_compress.dart';
 import 'package:nexusacg/core/network/api_client.dart';
 import 'package:nexusacg/core/repositories/repositories.dart';
 
@@ -32,6 +33,8 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
   bool _uploadingAny = false;
   bool _uploadingVideo = false;
   double _videoUploadProgress = 0.0;
+  bool _compressingVideo = false;
+  String _compressStatus = '';
 
   Future<void> _pickImage() async {
     final image = await _imagePicker.pickImage(
@@ -86,14 +89,37 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
     // Check file size before upload (server limit: 200MB)
     final fileSize = await file.length();
     if (fileSize > 200 * 1024 * 1024) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('视频过大 (${(fileSize / (1024 * 1024)).toStringAsFixed(0)}MB)，上限 200MB')),
-        );
-      }
-      return;
+      if (!mounted) return;
+      final shouldCompress = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('视频过大'),
+          content: Text(
+            '视频大小 ${(fileSize / (1024 * 1024)).toStringAsFixed(0)}MB，超过 200MB 上限。\n\n'
+            '可选择"压缩上传"，降低分辨率和码率后继续上传。',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('压缩上传'),
+            ),
+          ],
+        ),
+      );
+      if (shouldCompress != true) return;
+
+      // Compress then upload
+      await _compressAndUpload(file);
     }
 
+    await _doUpload(file);
+  }
+
+  Future<void> _doUpload(File file) async {
     setState(() {
       _uploadingVideo = true;
       _uploadingAny = true;
@@ -139,11 +165,93 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
     }
   }
 
+  Future<bool> _compressAndUpload(File sourceFile) async {
+    setState(() {
+      _compressingVideo = true;
+      _compressStatus = '正在压缩...';
+    });
+
+    try {
+      final info = await VideoCompress.compressVideo(
+        sourceFile.path,
+        quality: VideoQuality.MediumQuality,
+        deleteOrigin: false,
+      );
+      if (info == null || info.path == null) {
+        if (mounted) {
+          setState(() => _compressingVideo = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('压缩失败，请重试')),
+          );
+        }
+        return false;
+      }
+
+      final compressed = File(info.path!);
+      final newSize = await compressed.length();
+      if (mounted) {
+        setState(() {
+          _compressStatus = '压缩完成 (${(sourceFile.lengthSync() / (1024 * 1024)).toStringAsFixed(0)}MB → ${(newSize / (1024 * 1024)).toStringAsFixed(0)}MB)';
+        });
+      }
+
+      if (newSize > 200 * 1024 * 1024) {
+        // Still too large, retry with lower quality
+        if (mounted) {
+          setState(() => _compressStatus = '仍超过上限，尝试更低质量...');
+        }
+        final info2 = await VideoCompress.compressVideo(
+          sourceFile.path,
+          quality: VideoQuality.LowQuality,
+          deleteOrigin: false,
+        );
+        if (info2 == null || info2.path == null) {
+          if (mounted) {
+            setState(() => _compressingVideo = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('二次压缩失败，请重试')),
+            );
+          }
+          return false;
+        }
+        final compressed2 = File(info2.path!);
+        final newSize2 = await compressed2.length();
+        if (newSize2 > 200 * 1024 * 1024) {
+          if (mounted) {
+            setState(() => _compressingVideo = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('压缩后仍为 ${(newSize2 / (1024 * 1024)).toStringAsFixed(0)}MB，请选择更短的视频')),
+            );
+          }
+          return false;
+        }
+        // Upload low quality version
+        setState(() => _compressingVideo = false);
+        await _doUpload(compressed2);
+        return true;
+      }
+
+      setState(() => _compressingVideo = false);
+      await _doUpload(compressed);
+      return true;
+    } catch (e) {
+      if (mounted) {
+        setState(() => _compressingVideo = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('压缩失败: $e')),
+        );
+      }
+      return false;
+    }
+  }
+
   void _removeVideo() {
     setState(() {
       _videoUrl = null;
       _uploadingVideo = false;
+      _compressingVideo = false;
       _videoUploadProgress = 0.0;
+      _compressStatus = '';
     });
   }
 
@@ -155,8 +263,8 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
       return;
     }
 
-    // Wait for uploads
-    if (_uploadingVideo || _images.any((i) => i.uploading)) {
+    // Wait for uploads and compression
+    if (_uploadingVideo || _compressingVideo || _images.any((i) => i.uploading)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('请等待上传完成')),
       );
@@ -265,6 +373,33 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
               ],
             ),
             const SizedBox(height: 16),
+            // Video compression progress
+            if (_compressingVideo) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 20, height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.orange),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _compressStatus,
+                        style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.w500, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             // Video upload progress / preview
             if (_uploadingVideo) ...[
               Container(
