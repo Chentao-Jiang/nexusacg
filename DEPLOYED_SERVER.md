@@ -152,6 +152,8 @@ ssh root@101.133.169.72 "curl -s http://localhost:8080/health && docker logs --t
 | 2026-05-20 | 邮箱登录无反应 | `login_screen.dart` 的 BlocListener 新增 `AuthAuthenticated` 状态处理（显示登录成功提示）；`auth_bloc.dart` 添加 `result` 类型守卫防止非 Map 响应崩溃 |
 | 2026-05-20 | APK 构建失败: Gradle Daemon 卡死 | WSL2 swap 耗尽导致 Daemon 挂起；需重启 WSL2 释放内存后再构建 |
 | 2026-05-20 | APK 构建失败: jlink 不存在 | OpenJDK 缺少 jlink，改用 Oracle JDK 17 (`JAVA_HOME=/home/jct/jdks/jdk-17.0.12`) 构建 |
+| 2026-05-21 | SSH 连接全挂（端口通但认证阶段卡死） | 默认 kex 算法 `sntrup761x25519-sha512` 在服务端 ECDH 响应阶段挂死；SSH 命令添加 `-o KexAlgorithms=curve25519-sha256` 绕过 |
+| 2026-05-21 | 后端部署（视频上传 MIME 类型修复 + 邮箱登录修复 + auth_bloc 类型守卫） | 本地交叉编译 → scp（带 kex 参数）上传 → docker stop + docker cp + docker start 替换容器内二进制 → 健康检查通过 |
 
 ## APK 信息
 - Release APK: `/home/jct/nexusacg/client/build/app/outputs/flutter-apk/app-release.apk`
