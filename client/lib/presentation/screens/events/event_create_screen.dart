@@ -42,10 +42,10 @@ class _EventCreateScreenState extends State<EventCreateScreen> {
 
     setState(() => _uploadingImage = true);
     try {
-      final url = await ApiClient().uploadVideo(File(image.path));
-      if (url != null) {
+      final result = await ApiClient().uploadVideo(File(image.path));
+      if (result.isSuccess) {
         setState(() {
-          _coverUrl = url;
+          _coverUrl = result.url;
           _coverImage = File(image.path);
         });
       }

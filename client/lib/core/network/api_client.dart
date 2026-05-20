@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nexusacg/core/constants/app_constants.dart';
+import 'package:nexusacg/core/network/upload_result.dart';
 
 class ApiClient {
   static final ApiClient _instance = ApiClient._internal();
@@ -68,7 +69,7 @@ class ApiClient {
     return _dio.put<T>(path, data: data);
   }
 
-  Future<String?> uploadVideo(File file, {void Function(int, int)? onProgress}) async {
+  Future<UploadResult> uploadVideo(File file, {void Function(int, int)? onProgress}) async {
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(file.path, contentType: DioMediaType.parse('video/mp4')),
     });
@@ -84,9 +85,13 @@ class ApiClient {
     final data = response.data;
     if (data is Map && data['code'] == 0 && data['data'] != null) {
       final inner = data['data'] as Map;
-      return inner['url'] as String?;
+      final url = inner['url'] as String?;
+      if (url != null) return UploadResult(url: url);
     }
-    return null;
+    if (data is Map && data['message'] != null) {
+      return UploadResult(error: data['message'].toString());
+    }
+    return UploadResult(error: '服务器未返回URL (HTTP ${response.statusCode})');
   }
 
   Future<String?> uploadImage(File file) async {

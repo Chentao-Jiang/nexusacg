@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log"
 	"mime/multipart"
 	"net/http"
 
@@ -84,21 +85,26 @@ func (h *UploadHandler) Upload(c *gin.Context) {
 func (h *UploadHandler) UploadVideo(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
+		log.Printf("upload/video: formfile error: %v", err)
 		BadRequest(c, "missing file field")
 		return
 	}
+	log.Printf("upload/video: received %s size=%d ct=%s", file.Filename, file.Size, file.Header.Get("Content-Type"))
 
 	if err := validateFileMIME(file, allowedVideoMIME); err != nil {
+		log.Printf("upload/video: MIME rejected: %v", err)
 		BadRequest(c, err.Error())
 		return
 	}
 
 	url, err := h.store.Upload(file)
 	if err != nil {
+		log.Printf("upload/video: store error: %v", err)
 		BadRequest(c, err.Error())
 		return
 	}
 
+	log.Printf("upload/video: ok url=%s", url)
 	Success(c, gin.H{"url": url})
 }
 

@@ -89,7 +89,7 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
     });
 
     try {
-      final url = await ApiClient().uploadVideo(
+      final result = await ApiClient().uploadVideo(
         file,
         onProgress: (sent, total) {
           if (mounted && total > 0) {
@@ -98,9 +98,9 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
         },
       );
       if (mounted) {
-        if (url != null) {
+        if (result.isSuccess) {
           setState(() {
-            _videoUrl = url;
+            _videoUrl = result.url;
             _uploadingVideo = false;
             _uploadingAny = false;
           });
@@ -110,7 +110,7 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
             _uploadingAny = false;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('视频上传失败：服务器未返回URL')),
+            SnackBar(content: Text('视频上传失败：${result.error}')),
           );
         }
       }
