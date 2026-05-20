@@ -21,6 +21,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   }
   VideoPlayerController? _videoController;
   bool _videoInitialized = false;
+  bool _videoError = false;
+  String _videoErrorMessage = '';
   bool _playing = false;
   final _repo = PostRepository();
   late bool _liked;
@@ -38,9 +40,15 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       _videoController!.initialize().then((_) {
         if (mounted) {
           setState(() => _videoInitialized = true);
+          _videoController!.setLooping(true);
         }
-      }).catchError((_) {
-        // Video failed to load
+      }).catchError((error) {
+        if (mounted) {
+          setState(() {
+            _videoError = true;
+            _videoErrorMessage = error.toString();
+          });
+        }
       });
     }
   }
@@ -193,6 +201,70 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   }
 
   Widget _buildVideoPlayer() {
+    if (_videoError) {
+      return Container(
+        height: 200,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.white54),
+              const SizedBox(height: 8),
+              const Text('视频无法播放', style: TextStyle(color: Colors.white70, fontSize: 14)),
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  _videoErrorMessage.length > 80
+                      ? _videoErrorMessage.substring(0, 80)
+                      : _videoErrorMessage,
+                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _videoError = false;
+                    _videoInitialized = false;
+                    _videoErrorMessage = '';
+                    _videoController?.dispose();
+                    _videoController = VideoPlayerController.networkUrl(Uri.parse(widget.post.videoUrl!));
+                    _videoController!.initialize().then((_) {
+                      if (mounted) {
+                        setState(() {
+                          _videoInitialized = true;
+                          _videoController!.setLooping(true);
+                        });
+                      }
+                    }).catchError((error) {
+                      if (mounted) {
+                        setState(() {
+                          _videoError = true;
+                          _videoErrorMessage = error.toString();
+                        });
+                      }
+                    });
+                  });
+                },
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('重试', style: TextStyle(fontSize: 12)),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     if (!_videoInitialized) {
       return Container(
         height: 200,
