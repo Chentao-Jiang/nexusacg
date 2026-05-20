@@ -128,7 +128,7 @@ func main() {
 
 	// Router
 	r := gin.Default()
-	r.MaxMultipartMemory = 50 << 20 // 50MB for video uploads
+	r.MaxMultipartMemory = 200 << 20 // 200MB for video uploads
 	r.Use(middleware.CORS())
 	r.Use(middleware.SecurityHeaders())
 	r.Use(middleware.RateLimit())

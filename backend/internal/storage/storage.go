@@ -18,12 +18,12 @@ var allowedImageExtensions = map[string]bool{
 
 const maxImageSize = int64(10 * 1024 * 1024) // 10MB
 
-// Allowed video types and max file size (50MB).
+// Allowed video types and max file size (200MB).
 var allowedVideoExtensions = map[string]bool{
 	".mp4": true, ".webm": true, ".mov": true,
 }
 
-const maxVideoSize = int64(50 * 1024 * 1024) // 50MB
+const maxVideoSize = int64(200 * 1024 * 1024) // 200MB
 
 // Storage defines the interface for file upload backends.
 type Storage interface {

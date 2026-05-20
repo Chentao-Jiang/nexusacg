@@ -82,6 +82,18 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
     if (video == null) return;
 
     final file = File(video.path);
+
+    // Check file size before upload (server limit: 200MB)
+    final fileSize = await file.length();
+    if (fileSize > 200 * 1024 * 1024) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('视频过大 (${(fileSize / (1024 * 1024)).toStringAsFixed(0)}MB)，上限 200MB')),
+        );
+      }
+      return;
+    }
+
     setState(() {
       _uploadingVideo = true;
       _uploadingAny = true;
