@@ -30,6 +30,8 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
   String _visibility = 'public'; // public | followers | private
   bool _submitting = false;
   bool _uploadingAny = false;
+  bool _uploadingVideo = false;
+  double _videoUploadProgress = 0.0;
 
   Future<void> _pickImage() async {
     final image = await _imagePicker.pickImage(
@@ -80,18 +82,33 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
     if (video == null) return;
 
     final file = File(video.path);
-    setState(() => _uploadingAny = true);
+    setState(() {
+      _uploadingVideo = true;
+      _uploadingAny = true;
+      _videoUploadProgress = 0.0;
+    });
 
     try {
-      final url = await ApiClient().uploadVideo(file);
+      final url = await ApiClient().uploadVideo(
+        file,
+        onProgress: (sent, total) {
+          if (mounted && total > 0) {
+            setState(() => _videoUploadProgress = sent / total);
+          }
+        },
+      );
       if (mounted) {
         if (url != null) {
           setState(() {
             _videoUrl = url;
+            _uploadingVideo = false;
             _uploadingAny = false;
           });
         } else {
-          setState(() => _uploadingAny = false);
+          setState(() {
+            _uploadingVideo = false;
+            _uploadingAny = false;
+          });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('视频上传失败：服务器未返回URL')),
           );
@@ -99,7 +116,10 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _uploadingAny = false);
+        setState(() {
+          _uploadingVideo = false;
+          _uploadingAny = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('视频上传失败: $e')),
         );
@@ -108,7 +128,11 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
   }
 
   void _removeVideo() {
-    setState(() => _videoUrl = null);
+    setState(() {
+      _videoUrl = null;
+      _uploadingVideo = false;
+      _videoUploadProgress = 0.0;
+    });
   }
 
   Future<void> _submitPost() async {
@@ -120,9 +144,9 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
     }
 
     // Wait for uploads
-    if (_images.any((i) => i.uploading)) {
+    if (_uploadingVideo || _images.any((i) => i.uploading)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请等待图片上传完成')),
+        const SnackBar(content: Text('请等待上传完成')),
       );
       return;
     }
@@ -229,8 +253,48 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            // Video preview
-            if (_videoUrl != null) ...[
+            // Video upload progress / preview
+            if (_uploadingVideo) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const SizedBox(
+                          width: 20, height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2.5),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          '上传中 ${(_videoUploadProgress * 100).toStringAsFixed(0)}%',
+                          style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: _videoUploadProgress,
+                        minHeight: 6,
+                        backgroundColor: Colors.blue.shade100,
+                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            // Video uploaded (not uploading)
+            if (_videoUrl != null && !_uploadingVideo) ...[
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
