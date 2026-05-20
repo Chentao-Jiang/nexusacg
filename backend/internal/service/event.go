@@ -109,3 +109,28 @@ func (s *EventService) Create(ctx context.Context, input CreateEventInput) (*mod
 	}
 	return &event, nil
 }
+
+
+func (s *EventService) Register(eventID, userID uuid.UUID) error {
+	var event model.Event
+	if err := s.db.Where("id = ?", eventID).First(&event).Error; err != nil {
+		return fmt.Errorf("event not found")
+	}
+	uid := userID.String()
+	for _, id := range event.RegisteredUserIDs {
+		if id == uid {
+			return fmt.Errorf("already registered")
+		}
+	}
+	event.RegisteredUserIDs = append(event.RegisteredUserIDs, uid)
+	return s.db.Model(&event).Update("registered_user_ids", event.RegisteredUserIDs).Error
+}
+
+func (s *EventService) GetMyRegistrations(userID uuid.UUID) ([]model.Event, error) {
+	var events []model.Event
+	uid := userID.String()
+	// PostgreSQL JSONB contains operator
+	err := s.db.Where("status != ? AND registered_user_ids @> ?", "cancelled", fmt.Sprintf(`["%s"]`, uid)).
+		Order("start_time DESC").Find(&events).Error
+	return events, err
+}

@@ -674,6 +674,8 @@ func NewEventHandler(r *gin.RouterGroup, svc *service.EventService, authMW gin.H
 	private := r.Group("/events")
 	private.Use(authMW)
 	private.POST("", h.Create)
+	private.POST("/:id/register", h.Register)
+	private.GET("/my-registrations", h.MyRegistrations)
 }
 
 // ListEvents godoc
@@ -764,6 +766,45 @@ func (h *EventHandler) Create(c *gin.Context) {
 
 	Success(c, event)
 }
+// RegisterForEvent godoc
+// @Summary Register for an event
+// @Description Register current user for an event (requires auth)
+// @Tags events
+// @Param id path string true "Event UUID"
+// @Success 200 {object} Response
+// @Router /events/{id}/register [post]
+func (h *EventHandler) Register(c *gin.Context) {
+	eventID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		BadRequest(c, "invalid event id")
+		return
+	}
+	userID, _ := c.Get("user_id")
+	uid, _ := uuid.Parse(userID.(string))
+	if err := h.svc.Register(eventID, uid); err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
+	Success(c, gin.H{"registered": true})
+}
+
+// MyRegistrations godoc
+// @Summary Get my event registrations
+// @Description Get events the current user registered for (requires auth)
+// @Tags events
+// @Success 200 {object} Response
+// @Router /events/my-registrations [get]
+func (h *EventHandler) MyRegistrations(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	uid, _ := uuid.Parse(userID.(string))
+	events, err := h.svc.GetMyRegistrations(uid)
+	if err != nil {
+		InternalError(c, err.Error())
+		return
+	}
+	Success(c, gin.H{"items": events, "total": len(events)})
+}
+
 
 type CreateEventRequest struct {
 	Name        string   `json:"name" binding:"required"`

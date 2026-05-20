@@ -6,6 +6,8 @@ import 'package:nexusacg/presentation/blocs/auth/auth_state.dart';
 import 'package:nexusacg/presentation/screens/orders/orders_screen.dart';
 import 'package:nexusacg/presentation/screens/settings/settings_screen.dart';
 import 'package:nexusacg/presentation/screens/community/my_posts_screen.dart';
+import 'package:nexusacg/presentation/screens/community/follow_list_screen.dart';
+import 'package:nexusacg/presentation/screens/profile/my_registrations_screen.dart';
 import 'package:nexusacg/presentation/screens/profile/edit_profile_screen.dart';
 import 'package:nexusacg/presentation/screens/certification/certification_screen.dart';
 
@@ -95,7 +97,9 @@ class ProfileScreen extends StatelessWidget {
                 }),
                 _menuItem(Icons.favorite, '我的收藏', onTap: () => _showComingSoon(context, '我的收藏')),
                 _menuItem(Icons.local_offer, '我的商品', onTap: () => _showComingSoon(context, '我的商品')),
-                _menuItem(Icons.bookmark, '我的预约', onTap: () => _showComingSoon(context, '我的预约')),
+                _menuItem(Icons.bookmark, '我的预约', onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const MyRegistrationsScreen()));
+                }),
                 const Divider(),
                 _menuItem(Icons.store, '我要入驻', subtitle: '妆娘/摄影师/摊主', onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const CertificationScreen()));
@@ -103,7 +107,9 @@ class ProfileScreen extends StatelessWidget {
                 _menuItem(Icons.settings, '设置', onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
                 }),
-                _menuItem(Icons.help_outline, '帮助与反馈', onTap: () => _showComingSoon(context, '帮助与反馈')),
+                _menuItem(Icons.help_outline, '帮助与反馈', onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const _HelpScreen()));
+                }),
                 const Divider(),
                 Padding(
                   padding: const EdgeInsets.all(16),
@@ -172,3 +178,45 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 }
+
+
+class _HelpScreen extends StatelessWidget {
+  const _HelpScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('帮助与反馈')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          ListTile(
+            leading: const Icon(Icons.question_answer, color: Colors.blue),
+            title: const Text('常见问题'),
+            subtitle: const Text('查看常见问题解答'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {},
+          ),
+          ListTile(
+            leading: const Icon(Icons.mail_outline, color: Colors.green),
+            title: const Text('联系客服'),
+            subtitle: const Text('发送邮件至 support@nexusacg.com'),
+            onTap: () {},
+          ),
+          ListTile(
+            leading: const Icon(Icons.feedback_outlined, color: Colors.orange),
+            title: const Text('意见反馈'),
+            subtitle: const Text('告诉我们你的想法'),
+            onTap: () {},
+          ),
+          const Divider(),
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('次元链 NexusACG v0.1.0', style: TextStyle(color: Colors.grey, fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

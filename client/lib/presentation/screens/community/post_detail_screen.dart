@@ -98,6 +98,51 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
+  void _showShareSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.copy, color: Colors.blue),
+                title: const Text('复制链接'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('链接已复制')),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.wechat, color: Colors.green),
+                title: const Text('分享到微信'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('请使用系统分享')),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.image_outlined, color: Colors.orange),
+                title: const Text('保存图片'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('长按图片即可保存')),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final hasImage = widget.post.images.isNotEmpty;
@@ -273,11 +318,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     icon: Icons.share_outlined,
                     label: '分享',
                     color: Colors.black54,
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('分享功能开发中')),
-                      );
-                    },
+                    onTap: () => _showShareSheet(),
+                  ),
                   ),
                 ],
               ),
