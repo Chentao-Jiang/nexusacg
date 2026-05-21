@@ -106,6 +106,7 @@ type Post struct {
 	CommentCount int         `json:"comment_count" gorm:"default:0"`
 	Status       string      `json:"status" gorm:"default:pending_review;index"`
 	Visibility   string      `json:"visibility" gorm:"default:public;index"` // public | followers | private
+	GroupID      *uuid.UUID  `json:"group_id,omitempty" gorm:"type:uuid;index"`
 	CreatedAt    time.Time   `json:"created_at"`
 	UpdatedAt    time.Time   `json:"updated_at"`
 	Author       *User       `json:"author,omitempty" gorm:"foreignKey:UserID;references:ID"`
@@ -192,6 +193,17 @@ type Group struct {
 }
 
 func (Group) TableName() string { return "groups" }
+type GroupMember struct {
+	ID       uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	GroupID  uuid.UUID `json:"group_id" gorm:"type:uuid;uniqueIndex:idx_gm;not null"`
+	UserID   uuid.UUID `json:"user_id" gorm:"type:uuid;uniqueIndex:idx_gm;not null"`
+	Role     string    `json:"role" gorm:"default:member"`
+	JoinedAt time.Time `json:"joined_at" gorm:"autoCreateTime"`
+	User     *User     `json:"user,omitempty" gorm:"foreignKey:UserID;references:ID"`
+}
+
+func (GroupMember) TableName() string { return "group_members" }
+
 
 type Event struct {
 	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`

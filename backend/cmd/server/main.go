@@ -129,6 +129,7 @@ func main() {
 	bookmarkSvc := service.NewBookmarkService(db)
 	addrSvc := service.NewAddressService(db)
 	msgSvc := service.NewMessageService(db)
+	groupSvc := service.NewGroupService(db)
 
 	// Router
 	r := gin.Default()
@@ -190,6 +191,7 @@ func main() {
 	handler.NewBookmarkHandler(v1, bookmarkSvc, authMW)
 	handler.NewAddressHandler(v1, addrSvc, authMW)
 	handler.NewMessageHandler(v1, msgSvc, authMW)
+	handler.NewGroupHandler(v1, groupSvc, authMW)
 
 	// Order timeout cron: cancel pending orders after configured timeout
 	if cfg.OrderTimeoutMinutes > 0 {

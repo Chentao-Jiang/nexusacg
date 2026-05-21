@@ -53,6 +53,7 @@ func Connect(cfg *config.Config) *gorm.DB {
 		&model.Bookmark{},
 		&model.Address{},
 		&model.Message{},
+		&model.GroupMember{},
 	)
 
 	log.Println("database connected and migrated")

@@ -84,6 +84,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     _zoneCard(context, 'Cosplay专区', Icons.masks, const Color(0xFF6366F1), 0),
                     const SizedBox(width: 12),
+                    _zoneCard(context, '兴趣圈层', Icons.group, const Color(0xFF10B981), 2),
+                    const SizedBox(width: 12),
                     _zoneCard(context, '周边专区', Icons.shopping_cart, const Color(0xFFEC4899), 1),
                   ],
                 ),
