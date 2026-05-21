@@ -157,13 +157,30 @@ ssh root@101.133.169.72 "curl -s http://localhost:8080/health && docker logs --t
 | 2026-05-21 | 上传视频后显示"此视频无法播放" | `post_detail_screen.dart` 视频播放器添加 `_videoError` 状态 + 错误 UI 显示 + 重试按钮 + `setLooping(true)`，构建 APK v0.1.6 |
 | 2026-05-21 | 视频播放 Media error (unknown) — HTTP 明文流量被 Android 禁止 | `AndroidManifest.xml` 添加 `android:usesCleartextTraffic="true"`，原生 ExoPlayer 默认拒绝 http:// 视频 URL，构建 APK v0.1.7 |
 | 2026-05-21 | 视频上传 Broken pipe — 服务器 ReadTimeout 15s 太短 | `main.go` ReadTimeout 改为 5 分钟，WriteTimeout 改为 5 分钟，已部署 |
+| 2026-05-21 | 视频上传无实时进度 | `post_create_screen.dart` 添加 CircularProgressIndicator + 百分比文字 + LinearProgressIndicator |
+| 2026-05-21 | 视频文件过大（67MB > 50MB 上限）| 服务器 `maxVideoSize` + `MaxMultipartMemory` 均改为 200MB |
+| 2026-05-21 | 视频上传失败只显示"服务器未返回URL" | `api_client.dart` 新增 `UploadResult` 类替换 `String?` 返回，携带服务器错误消息 |
+| 2026-05-21 | 发布帖子超时 DioException receive timeout | `api_client.dart` receiveTimeout 10s -> 30s，connectTimeout 10s -> 15s |
+| 2026-05-21 | 帖子详情页"朋友圈"风格 + 视频比例不符 | `post_detail_screen.dart` 全面重写为小红书风格：AppBar 作者+关注、媒体区在最前、BoxFit.cover 保持比例、固定底部操作栏 |
+| 2026-05-21 | 缺少关注/粉丝功能 | 后端 Follow 模型 + 5 个 API；前端 FollowRepository + FollowListScreen + 帖子详情关注按钮 |
+| 2026-05-21 | 分享/报名/预约/帮助 等板块显示"开发中" | 分享底部弹窗 + 活动报名 API + MyRegistrationsScreen + 帮助与反馈页面 + 搜索 SearchDelegate + 通知页面 + 设置页清除缓存/关于/协议 |
+| 2026-05-21 | 缺少收藏(Bookmark)系统 | 后端 Bookmark 模型 + POST/DELETE /posts/:id/bookmark + GET /my-bookmarks；前端 MyBookmarksScreen |
+| 2026-05-21 | 缺少收货地址管理 | 后端 Address CRUD API；前端 AddressListScreen + AddressEditScreen（含默认地址） |
+| 2026-05-21 | 缺少用户协议/隐私政策页面 | LegalPage 完整阅读页面 |
+| 2026-05-21 | 视频帖无缩略图（只有黑色封面+播放图标）| Android MediaMetadataRetriever 平台通道 + 上传视频时自动生成缩略图并作为封面 |
+| 2026-05-21 | 缺少站内聊天消息系统 | 后端 Message 模型 + 3 个 API（Send/Conversations/GetMessages）；前端 ConversationsScreen + ChatScreen 聊天气泡 UI |
+| 2026-05-21 | 缺少兴趣圈层(Groups) | 后端 GroupMember 模型 + 9 个 API；前端 GroupListScreen + GroupDetailScreen（Tab 帖子/成员）+ GroupCreateScreen |
+| 2026-05-21 | 缺少服务者平台前端 + 预约/评价 | ServiceProviderListScreen + ProviderDetailScreen（作品/评价/预约/星级）+ Booking API + Review API |
+| 2026-05-21 | 缺少商家信用体系 | SellerRating 模型 + POST /rate/order/:id + GET /ratings/seller/:id + User 模型 seller_rating 字段 |
+| 2026-05-21 | Code Review: seller_rating 列名错误 status->order_status + 事务错误未检查 + ID 错误 + Controller 泄漏 | 修正列名 + 事务添加 rollback + 重新查询获取正确ID + 添加 dispose |
+| 2026-05-21 | 服务器容器启动失败（路由冲突）| Gin /orders 组路由冲突导致启动 panic；改为 /rate 和 /ratings 独立前缀 |
 
 ## APK 信息
 - Release APK: `/home/jct/nexusacg/client/build/app/outputs/flutter-apk/app-release.apk`
-- 大小: 11.2MB (arm64-only)
+- 大小: 6.8MB (arm64-only)
 - API 地址: `http://101.133.169.72:8080/api/v1`
-- 版本: 0.1.7
-- 构建时间: 2026-05-21 01:15
+- 版本: 0.2.0 (Phase 2)
+- 构建时间: 2026-05-21 11:58
 - 构建命令: `JAVA_HOME=/home/jct/jdks/jdk-17.0.12 flutter build apk --release --target-platform=android-arm64`
 - **注意**: 安装前需先卸载旧版本
 
