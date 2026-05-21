@@ -191,12 +191,20 @@ ssh root@101.133.169.72 "curl -s http://localhost:8080/health && docker logs --t
 | 2026-05-21 | 我的收藏无法跳转详情+无封面预览 | onTap→PostDetailScreen(post: PostModel.fromJson) + CachedNetworkImage封面 |
 | 2026-05-21 | 别人无法在帖子详情页点击关注 | ApiClient().currentUserId检查：非空+非自己才显示关注按钮 |
 
+| 2026-05-21 | 视频比例依旧不是原比例 | _buildVideoFrame移除Center包装，Container(width:double.infinity)+AspectRatio+ClipRRect保持原视频宽高比 |
+| 2026-05-21 | 上架商品入口显示"功能开发中" | profile_screen添加完整商品发布表单(名称+描述+价格+分区选择+POST /products) |
+| 2026-05-21 | 圈层发帖发到社区而非圈层 | PostCreateScreen接受groupId参数→Repositories传递给createPost API→GroupDetailScreen传递group_id |
+| 2026-05-21 | 分享复制链接显示JSON而非URL+保存图片无效+无视频保存+长按不保存 | 复制nexusacg://deep+link、添加视频保存(下载MP4到Movies)、Dio ResponseType.bytes保存到Pictures |
+| 2026-05-21 | 视频帖子封面为黑色+播放键 | 进入详情页自动播放(videoController!.play()) |
+| 2026-05-21 | 我的收藏无法跳转+无封面 | PostModel.fromJson解析+onTap→PostDetailScreen+CachedNetworkImage封面 |
+| 2026-05-21 | 自己可关注自己 | Follow服务followerID==followingID检查返回error+前端ApiClient().currentUserId过滤 |
+
 ## APK 信息
 - Release APK: `/home/jct/nexusacg/client/build/app/outputs/flutter-apk/app-release.apk`
 - 大小: 6.8MB (arm64-only)
 - API 地址: `http://101.133.169.72:8080/api/v1`
-- 版本: 0.2.2
-- 构建时间: 2026-05-21 17:37
+- 版本: 0.2.3
+- 构建时间: 2026-05-21 22:01
 - 构建命令: `JAVA_HOME=/home/jct/jdks/jdk-17.0.12 flutter build apk --release --target-platform=android-arm64`
 - **注意**: 安装前需先卸载旧版本
 
