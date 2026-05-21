@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/planforever/nexusacg/internal/model"
 	"gorm.io/gorm"
@@ -17,14 +18,34 @@ func NewFollowService(db *gorm.DB) *FollowService {
 
 func (s *FollowService) Follow(followerID, followingID uuid.UUID) error {
 	if followerID == followingID {
-		return gorm.ErrInvalidData
+		return fmt.Errorf("cannot follow yourself")
 	}
 	f := model.Follow{FollowerID: followerID, FollowingID: followingID}
-	return s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&f).Error
+	tx := s.db.Begin()
+	if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&f).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	// Only update counts if insert succeeded (RowsAffected > 0)
+	if tx.RowsAffected > 0 {
+		tx.Model(&model.User{}).Where("id = ?", followerID).UpdateColumn("following_count", gorm.Expr("following_count + 1"))
+		tx.Model(&model.User{}).Where("id = ?", followingID).UpdateColumn("follower_count", gorm.Expr("follower_count + 1"))
+	}
+	return tx.Commit().Error
 }
 
 func (s *FollowService) Unfollow(followerID, followingID uuid.UUID) error {
-	return s.db.Where("follower_id = ? AND following_id = ?", followerID, followingID).Delete(&model.Follow{}).Error
+	tx := s.db.Begin()
+	res := tx.Where("follower_id = ? AND following_id = ?", followerID, followingID).Delete(&model.Follow{})
+	if res.Error != nil {
+		tx.Rollback()
+		return res.Error
+	}
+	if res.RowsAffected > 0 {
+		tx.Model(&model.User{}).Where("id = ?", followerID).UpdateColumn("following_count", gorm.Expr("GREATEST(following_count - 1, 0)"))
+		tx.Model(&model.User{}).Where("id = ?", followingID).UpdateColumn("follower_count", gorm.Expr("GREATEST(follower_count - 1, 0)"))
+	}
+	return tx.Commit().Error
 }
 
 func (s *FollowService) IsFollowing(followerID, followingID uuid.UUID) (bool, error) {

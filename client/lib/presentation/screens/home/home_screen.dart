@@ -83,13 +83,19 @@ class _HomeScreenState extends State<HomeScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
+                child: Column(
                   children: [
-                    _zoneCard(context, 'Cosplay专区', Icons.masks, const Color(0xFF6366F1), 0),
-                    const SizedBox(width: 12),
-                    _zoneCard(context, '兴趣圈层', Icons.group, const Color(0xFF10B981), 2),
-                    const SizedBox(width: 12),
-                    _zoneCard(context, '周边专区', Icons.shopping_cart, const Color(0xFFEC4899), 1),
+                    Row(
+                      children: [
+                        _zoneCard(context, 'Cosplay专区', Icons.masks, const Color(0xFF6366F1), 0),
+                        const SizedBox(width: 12),
+                        _zoneCard(context, '周边专区', Icons.shopping_cart, const Color(0xFFEC4899), 1),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _fullWidthCard(context, '兴趣圈层', Icons.group, const Color(0xFF10B981), () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const GroupListScreen()));
+                    }),
                   ],
                 ),
               ),
@@ -177,6 +183,29 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+
+  Widget _fullWidthCard(BuildContext context, String title, IconData icon, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 36, color: color),
+            const SizedBox(width: 16),
+            Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: color)),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showSearch(BuildContext context) {
     showSearch(context: context, delegate: _SimpleSearchDelegate());
   }
@@ -227,4 +256,6 @@ class _NotificationsPage extends StatelessWidget {
       ),
     );
   }
+
+
 }

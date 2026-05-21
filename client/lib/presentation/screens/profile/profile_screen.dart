@@ -107,7 +107,7 @@ class ProfileScreen extends StatelessWidget {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const MyRegistrationsScreen()));
                 }),
                 const Divider(),
-                _menuItem(Icons.store, '我要入驻', subtitle: '妆娘/摄影师/摊主', onTap: () {
+                _menuItem(Icons.store, '我要入驻', subtitle: '妆娘/摄影师/商家', onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const CertificationScreen()));
                 }),
                 _menuItem(Icons.settings, '设置', onTap: () {

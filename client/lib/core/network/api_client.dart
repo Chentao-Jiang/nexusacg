@@ -11,6 +11,7 @@ class ApiClient {
 
   late Dio _dio;
   String? _accessToken;
+  String? _currentUserId;
 
   Future<void> init() async {
     _dio = Dio(BaseOptions(
@@ -38,6 +39,7 @@ class ApiClient {
 
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString('access_token');
+    _currentUserId = prefs.getString('user_id');
   }
 
   set accessToken(String? token) {
@@ -46,12 +48,14 @@ class ApiClient {
       if (token != null) {
         prefs.setString('access_token', token);
       } else {
+        prefs.remove('user_id');
         prefs.remove('access_token');
       }
     });
   }
 
   Dio get dio => _dio;
+  String? get currentUserId => _currentUserId;
 
   Future<Response<T>> get<T>(String path, {Map<String, dynamic>? queryParameters}) async {
     return _dio.get<T>(path, queryParameters: queryParameters);

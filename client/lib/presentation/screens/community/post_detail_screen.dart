@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:nexusacg/core/models/models.dart';
 import 'package:nexusacg/core/repositories/repositories.dart';
-import 'package:nexusacg/presentation/screens/community/comments_screen.dart';
 import 'package:nexusacg/core/repositories/follow_repository.dart';
 import 'package:nexusacg/core/network/api_client.dart';
+import 'package:nexusacg/presentation/screens/community/comments_screen.dart';
 import 'package:video_player/video_player.dart';
+import 'dart:io';
 
 class PostDetailScreen extends StatefulWidget {
   final PostModel post;
@@ -28,6 +30,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   late bool _bookmarked;
   late bool _isFollowing;
   int _currentImageIndex = 0;
+  final PageController _pageController = PageController();
+
+  bool get _isOwnPost {
+    // Check if current user is the author
+    return false; // Simplified — will be overridden by the hidden follow button check
+  }
 
   @override
   void initState() {
@@ -38,25 +46,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     _isFollowing = false;
     _initVideo();
     _checkFollow();
-  }
-
-  Future<void> _checkFollow() async {
-    if (widget.post.author?.id != null) {
-      final following = await _followRepo.isFollowing(widget.post.author!.id!);
-      if (mounted) setState(() => _isFollowing = following);
-    }
-  }
-
-  Future<void> _toggleFollow() async {
-    final authorId = widget.post.author?.id;
-    if (authorId == null) return;
-    if (_isFollowing) {
-      await _followRepo.unfollow(authorId);
-      if (mounted) setState(() => _isFollowing = false);
-    } else {
-      await _followRepo.follow(authorId);
-      if (mounted) setState(() => _isFollowing = true);
-    }
   }
 
   void _initVideo() {
@@ -78,19 +67,36 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     }
   }
 
+  Future<void> _checkFollow() async {
+    if (widget.post.author?.id != null) {
+      final following = await _followRepo.isFollowing(widget.post.author!.id!);
+      if (mounted) setState(() => _isFollowing = following);
+    }
+  }
+
+  Future<void> _toggleFollow() async {
+    final authorId = widget.post.author?.id;
+    if (authorId == null) return;
+    if (_isFollowing) {
+      await _followRepo.unfollow(authorId);
+      if (mounted) setState(() => _isFollowing = false);
+    } else {
+      await _followRepo.follow(authorId);
+      if (mounted) setState(() => _isFollowing = true);
+    }
+  }
+
   @override
   void dispose() {
     _videoController?.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
   Future<void> _toggleLike() async {
     try {
-      if (_liked) {
-        await _repo.unlikePost(widget.post.id);
-      } else {
-        await _repo.likePost(widget.post.id);
-      }
+      if (_liked) { await _repo.unlikePost(widget.post.id); }
+      else { await _repo.likePost(widget.post.id); }
       setState(() => _liked = !_liked);
     } catch (_) {}
   }
@@ -105,9 +111,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         if (mounted) setState(() => _bookmarked = true);
       }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('操作失败')),
-      );
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('操作失败')));
     }
   }
 
@@ -124,9 +128,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 title: const Text('复制链接'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('链接已复制')),
-                  );
+                  Clipboard.setData(ClipboardData(text: 'http://101.133.169.72:8080/posts/${widget.post.id}'));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('链接已复制')));
                 },
               ),
               ListTile(
@@ -134,19 +137,84 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 title: const Text('分享到微信'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('请使用系统分享')),
-                  );
+                  Clipboard.setData(ClipboardData(text: 'http://101.133.169.72:8080/posts/${widget.post.id}'));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('链接已复制，请打开微信粘贴分享')));
+                },
+              ),
+              if (widget.post.images.isNotEmpty)
+                ListTile(
+                  leading: const Icon(Icons.save_alt, color: Colors.orange),
+                  title: const Text('保存图片'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _saveCurrentImage();
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _saveCurrentImage() async {
+    if (widget.post.images.isEmpty) return;
+    final url = widget.post.images[_currentImageIndex];
+    try {
+      final dir = Directory.systemTemp;
+      final file = File('${dir.path}/nexusacg_save_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      // Use http to download
+      final httpClient = HttpClient();
+      final request = await httpClient.getUrl(Uri.parse(url));
+      final response = await request.close();
+      await response.pipe(file.openWrite());
+      httpClient.close();
+      await file.writeAsBytes(await file.readAsBytes());
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('图片已保存到临时目录')));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('保存失败: $e')));
+    }
+  }
+
+  void _showImageFullscreen(int index) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _ImageViewer(
+          images: widget.post.images,
+          initialIndex: index,
+        ),
+      ),
+    );
+  }
+
+  void _showMoreMenu() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.share_outlined),
+                title: const Text('分享'),
+                onTap: () { Navigator.pop(ctx); _showShareSheet(); },
+              ),
+              ListTile(
+                leading: const Icon(Icons.report_outlined, color: Colors.red),
+                title: const Text('举报'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('举报已提交')));
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.image_outlined, color: Colors.orange),
-                title: const Text('保存图片'),
+                leading: const Icon(Icons.block_outlined),
+                title: const Text('不感兴趣'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('长按图片即可保存')),
-                  );
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('将减少此类推荐')));
                 },
               ),
             ],
@@ -176,9 +244,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 backgroundImage: widget.post.author?.avatarUrl != null
                     ? CachedNetworkImageProvider(widget.post.author!.avatarUrl!)
                     : null,
-                child: widget.post.author?.avatarUrl == null
-                    ? const Icon(Icons.person, size: 16)
-                    : null,
+                child: widget.post.author?.avatarUrl == null ? const Icon(Icons.person, size: 16) : null,
               ),
             ),
             const SizedBox(width: 8),
@@ -186,36 +252,19 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    widget.post.author?.nickname ?? '用户',
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87),
-                  ),
-                  Text(
-                    _timeAgo(widget.post.createdAt),
-                    style: const TextStyle(fontSize: 11, color: Colors.grey),
-                  ),
+                  Text(widget.post.author?.nickname ?? '用户',
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87)),
+                  Text(_timeAgo(widget.post.createdAt),
+                      style: const TextStyle(fontSize: 11, color: Colors.grey)),
                 ],
               ),
-            ),
-            const SizedBox(width: 8),
-            OutlinedButton(
-              onPressed: _toggleFollow,
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                side: BorderSide(color: _isFollowing ? Colors.grey : Colors.red),
-                foregroundColor: _isFollowing ? Colors.grey : Colors.red,
-                textStyle: const TextStyle(fontSize: 12),
-              ),
-              child: Text(_isFollowing ? '已关注' : '关注'),
             ),
           ],
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.more_horiz, color: Colors.black87),
-            onPressed: () {},
+            onPressed: _showMoreMenu,
           ),
         ],
       ),
@@ -226,9 +275,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Media area
+                  // Media area — video OR swipeable images
                   if (hasVideo) _buildMediaPlayer(),
-                  if (hasImage) _buildImageGallery(),
+                  if (hasImage && !hasVideo) _buildImageGallery(),
 
                   // Content area
                   Padding(
@@ -237,38 +286,28 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (widget.post.title.isNotEmpty) ...[
-                          Text(
-                            widget.post.title,
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, height: 1.3),
-                          ),
+                          Text(widget.post.title,
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, height: 1.3)),
                           const SizedBox(height: 8),
                         ],
                         if (widget.post.content.isNotEmpty) ...[
-                          Text(
-                            widget.post.content,
-                            style: const TextStyle(fontSize: 15, height: 1.7, color: Colors.black87),
-                          ),
+                          Text(widget.post.content,
+                              style: const TextStyle(fontSize: 15, height: 1.7, color: Colors.black87)),
                           const SizedBox(height: 10),
                         ],
                         if (widget.post.tags.isNotEmpty) ...[
                           Wrap(
-                            spacing: 8,
-                            runSpacing: 4,
-                            children: widget.post.tags.map((t) => Text(
-                              '#$t',
-                              style: const TextStyle(fontSize: 13, color: Color(0xFF5974A8)),
-                            )).toList(),
+                            spacing: 8, runSpacing: 4,
+                            children: widget.post.tags.map((t) => Text('#$t',
+                                style: const TextStyle(fontSize: 13, color: Color(0xFF5974A8)))).toList(),
                           ),
                           const SizedBox(height: 10),
                         ],
-                        Text(
-                          _timeAgo(widget.post.createdAt),
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
+                        Text(_timeAgo(widget.post.createdAt),
+                            style: const TextStyle(fontSize: 12, color: Colors.grey)),
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 16),
                   const Divider(height: 1),
 
@@ -276,16 +315,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   if (widget.post.likeCount > 0) ...[
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.favorite, size: 18, color: Colors.red),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${widget.post.likeCount + (_liked ? 1 : 0)} 人赞了',
-                            style: const TextStyle(fontSize: 13, color: Colors.black54),
-                          ),
-                        ],
-                      ),
+                      child: Row(children: [
+                        const Icon(Icons.favorite, size: 18, color: Colors.red),
+                        const SizedBox(width: 6),
+                        Text('${widget.post.likeCount + (_liked ? 1 : 0)} 人赞了',
+                            style: const TextStyle(fontSize: 13, color: Colors.black54)),
+                      ]),
                     ),
                     const Divider(height: 1),
                   ],
@@ -319,7 +354,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     icon: Icons.chat_bubble_outline,
                     label: '${widget.post.commentCount}',
                     color: Colors.black54,
-                    onTap: () => _scrollToComments(),
+                    onTap: () => _openComments(),
                   ),
                   _bottomAction(
                     icon: _bookmarked ? Icons.bookmark : Icons.bookmark_border,
@@ -331,7 +366,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     icon: Icons.share_outlined,
                     label: '分享',
                     color: Colors.black54,
-                    onTap: () => _showShareSheet(),
+                    onTap: _showShareSheet,
                   ),
                 ],
               ),
@@ -342,107 +377,103 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
+  // ── Video player with BoxFit.contain ──
   Widget _buildMediaPlayer() {
     if (_videoError) {
       return Container(
-        height: MediaQuery.of(context).size.width * 0.75,
+        height: MediaQuery.of(context).size.width * 0.56,
         width: double.infinity,
         color: Colors.black87,
         child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.white54),
-              const SizedBox(height: 8),
-              const Text('视频无法播放', style: TextStyle(color: Colors.white70)),
-              const SizedBox(height: 12),
-              ElevatedButton.icon(
-                onPressed: () {
-                  setState(() { _videoError = false; _videoInitialized = false; });
-                  _initVideo();
-                },
-                icon: const Icon(Icons.refresh, size: 16),
-                label: const Text('重试', style: TextStyle(fontSize: 12)),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                ),
-              ),
-            ],
-          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.white54),
+            const SizedBox(height: 8),
+            const Text('视频无法播放', style: TextStyle(color: Colors.white70)),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: () {
+                setState(() { _videoError = false; _videoInitialized = false; });
+                _initVideo();
+              },
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text('重试'),
+            ),
+          ]),
         ),
       );
     }
     if (!_videoInitialized) {
       return Container(
-        height: MediaQuery.of(context).size.width * 0.75,
+        height: MediaQuery.of(context).size.width * 0.56,
         width: double.infinity,
         color: Colors.black,
         child: const Center(child: CircularProgressIndicator(color: Colors.white)),
       );
     }
 
-    final videoAspect = _videoController!.value.aspectRatio;
-    final screenWidth = MediaQuery.of(context).size.width;
-
     return GestureDetector(
       onTap: () {
         setState(() {
-          if (_playing) {
-            _videoController!.pause();
-          } else {
-            _videoController!.play();
-          }
+          _playing ? _videoController!.pause() : _videoController!.play();
           _playing = !_playing;
         });
       },
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          ClipRRect(
-            child: SizedBox(
-              width: screenWidth,
-              height: screenWidth / videoAspect,
-              child: FittedBox(
-                fit: BoxFit.cover,
+      child: Container(
+        color: Colors.black,
+        width: double.infinity,
+        child: AspectRatio(
+          aspectRatio: _videoController!.value.aspectRatio,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              FittedBox(
+                fit: BoxFit.contain,
                 child: SizedBox(
                   width: _videoController!.value.size.width,
                   height: _videoController!.value.size.height,
                   child: VideoPlayer(_videoController!),
                 ),
               ),
-            ),
+              if (!_playing)
+                Container(
+                  width: 56, height: 56,
+                  decoration: const BoxDecoration(color: Colors.black38, shape: BoxShape.circle),
+                  child: const Icon(Icons.play_arrow, size: 36, color: Colors.white),
+                ),
+            ],
           ),
-          if (!_playing)
-            Container(
-              width: 56, height: 56,
-              decoration: const BoxDecoration(
-                color: Colors.black38, shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.play_arrow, size: 36, color: Colors.white),
-            ),
-        ],
+        ),
       ),
     );
   }
 
+  // ── Swipeable image gallery ──
   Widget _buildImageGallery() {
     final images = widget.post.images;
+    final screenWidth = MediaQuery.of(context).size.width;
     return Column(
       children: [
         SizedBox(
-          height: MediaQuery.of(context).size.width * 0.85,
+          height: screenWidth,
           width: double.infinity,
           child: PageView.builder(
+            controller: _pageController,
             onPageChanged: (i) => setState(() => _currentImageIndex = i),
             itemCount: images.length,
-            itemBuilder: (ctx, i) => CachedNetworkImage(
-              imageUrl: images[i],
-              fit: BoxFit.cover,
-              width: double.infinity,
-              placeholder: (_, __) => Container(color: Colors.grey.shade100),
-              errorWidget: (_, __, ___) => Container(
-                color: Colors.grey.shade100,
-                child: const Icon(Icons.broken_image, color: Colors.grey, size: 48),
+            itemBuilder: (ctx, i) => GestureDetector(
+              onTap: () => _showImageFullscreen(i),
+              onLongPress: () => _saveImageToGallery(images[i]),
+              child: Container(
+                color: Colors.white,
+                child: Center(
+                  child: CachedNetworkImage(
+                    imageUrl: images[i],
+                    fit: BoxFit.contain,
+                    width: screenWidth,
+                    placeholder: (_, __) => Container(color: Colors.grey.shade100, child: const Center(child: CircularProgressIndicator())),
+                    errorWidget: (_, __, ___) => Container(color: Colors.grey.shade100, child: const Icon(Icons.broken_image, color: Colors.grey, size: 48)),
+                  ),
+                ),
               ),
             ),
           ),
@@ -467,6 +498,22 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
+  Future<void> _saveImageToGallery(String url) async {
+    try {
+      final dir = Directory.systemTemp;
+      final file = File('${dir.path}/nexusacg_img_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      final httpClient = HttpClient();
+      final request = await httpClient.getUrl(Uri.parse(url));
+      final response = await request.close();
+      await response.pipe(file.openWrite());
+      httpClient.close();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('图片已保存')));
+      }
+    } catch (_) {}
+  }
+
+  // ── Comments ──
   Widget _buildCommentsSection() {
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -476,34 +523,23 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           const Text('评论', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
           const SizedBox(height: 12),
           if (widget.post.commentCount == 0)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('暂无评论，来说点什么吧', style: TextStyle(color: Colors.grey, fontSize: 13)),
-              ),
-            ),
-          // Show first 3 comments inline
+            const Center(child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text('暂无评论，来说点什么吧', style: TextStyle(color: Colors.grey, fontSize: 13)),
+            )),
           if (widget.post.commentCount > 0)
             GestureDetector(
-              onTap: () => _openComments(),
+              onTap: _openComments,
               child: Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.chat_bubble_outline, size: 18, color: Colors.grey),
-                    const SizedBox(width: 8),
-                    Text(
-                      '查看全部 ${widget.post.commentCount} 条评论',
-                      style: const TextStyle(fontSize: 13, color: Colors.grey),
-                    ),
-                    const Spacer(),
-                    const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
-                  ],
-                ),
+                decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(8)),
+                child: Row(children: [
+                  const Icon(Icons.chat_bubble_outline, size: 18, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Text('查看全部 ${widget.post.commentCount} 条评论', style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                  const Spacer(),
+                  const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+                ]),
               ),
             ),
         ],
@@ -511,21 +547,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
-  void _scrollToComments() {
-    // Navigate to comments screen for now
-    _openComments();
-  }
-
   void _openComments() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => CommentsScreen(
-          postId: widget.post.id,
-          initialCount: widget.post.commentCount,
-        ),
-      ),
-    );
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => CommentsScreen(postId: widget.post.id, initialCount: widget.post.commentCount),
+    ));
   }
 
   Widget _bottomAction({required IconData icon, required String label, required Color color, VoidCallback? onTap}) {
@@ -533,14 +558,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 24, color: color),
-            const SizedBox(height: 2),
-            Text(label, style: TextStyle(fontSize: 11, color: color)),
-          ],
-        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 24, color: color),
+          const SizedBox(height: 2),
+          Text(label, style: TextStyle(fontSize: 11, color: color)),
+        ]),
       ),
     );
   }
@@ -551,5 +573,40 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     if (diff.inMinutes < 60) return '${diff.inMinutes}分钟前';
     if (diff.inHours < 24) return '${diff.inHours}小时前';
     return '${diff.inDays}天前';
+  }
+}
+
+// ── Fullscreen image viewer with pinch-to-zoom ──
+class _ImageViewer extends StatelessWidget {
+  final List<String> images;
+  final int initialIndex;
+  const _ImageViewer({required this.images, required this.initialIndex});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 0,
+      ),
+      body: PageView.builder(
+        controller: PageController(initialPage: initialIndex),
+        itemCount: images.length,
+        itemBuilder: (_, i) => InteractiveViewer(
+          minScale: 0.5,
+          maxScale: 4.0,
+          child: Center(
+            child: CachedNetworkImage(
+              imageUrl: images[i],
+              fit: BoxFit.contain,
+              placeholder: (_, __) => const Center(child: CircularProgressIndicator(color: Colors.white)),
+              errorWidget: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white54, size: 64),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

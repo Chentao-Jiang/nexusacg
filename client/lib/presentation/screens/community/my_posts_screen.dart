@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:nexusacg/core/models/models.dart';
 import 'package:nexusacg/core/network/api_client.dart';
+import 'package:nexusacg/presentation/screens/community/post_detail_screen.dart';
+import 'package:nexusacg/core/models/models.dart';
 import 'package:nexusacg/core/repositories/repositories.dart';
 
 class MyPostsScreen extends StatefulWidget {
@@ -217,6 +219,9 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         elevation: 0,
                         child: InkWell(
+                          onTap: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => PostDetailScreen(post: post)));
+                          },
                           borderRadius: BorderRadius.circular(10),
                           child: Padding(
                             padding: const EdgeInsets.all(10),

@@ -77,6 +77,12 @@ class _MyBookmarksScreenState extends State<MyBookmarksScreen> {
                           icon: const Icon(Icons.bookmark_remove, color: Colors.orange),
                           onPressed: () => _removeBookmark(item['post_id']?.toString() ?? ''),
                         ),
+                        onTap: () {
+                          try {
+                            final post = PostModel.fromJson(item);
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => PostDetailScreen(post: post)));
+                          } catch (_) {}
+                        },
                       ),
                     );
                   },

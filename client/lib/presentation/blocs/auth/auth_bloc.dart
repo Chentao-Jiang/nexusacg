@@ -1,7 +1,12 @@
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nexusacg/core/network/api_client.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nexusacg/core/models/models.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nexusacg/core/repositories/repositories.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nexusacg/presentation/blocs/auth/auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
@@ -30,6 +35,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             ? UserModel.fromJson(result['data']['user'])
             : UserModel(id: '', nickname: '用户', role: 'user');
         ApiClient().accessToken = token;
+        SharedPreferences.getInstance().then((p) => p.setString('user_id', user.id));
         emit(AuthAuthenticated(user: user, accessToken: token));
       } else if (result is Map) {
         emit(AuthError(result['message'] as String? ?? '登录失败'));
@@ -72,6 +78,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             ? UserModel.fromJson(result['data']['user'])
             : UserModel(id: '', nickname: event.nickname, role: 'user');
         ApiClient().accessToken = token;
+        SharedPreferences.getInstance().then((p) => p.setString('user_id', user.id));
         emit(AuthAuthenticated(user: user, accessToken: token));
       } else {
         emit(AuthError(result['message'] as String? ?? '注册失败'));
@@ -92,6 +99,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final result = await _repo.getCurrentUser();
       if (result['code'] == 0 && result['data'] != null) {
         final user = UserModel.fromJson(result['data']);
+                SharedPreferences.getInstance().then((p) => p.setString('user_id', user.id));
         emit(AuthAuthenticated(user: user, accessToken: event.token));
       } else {
         emit(AuthUnauthenticated());
