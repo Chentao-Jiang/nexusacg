@@ -175,12 +175,21 @@ ssh root@101.133.169.72 "curl -s http://localhost:8080/health && docker logs --t
 | 2026-05-21 | Code Review: seller_rating 列名错误 status->order_status + 事务错误未检查 + ID 错误 + Controller 泄漏 | 修正列名 + 事务添加 rollback + 重新查询获取正确ID + 添加 dispose |
 | 2026-05-21 | 服务器容器启动失败（路由冲突）| Gin /orders 组路由冲突导致启动 panic；改为 /rate 和 /ratings 独立前缀 |
 
+| 2026-05-21 | 视频比例不符 + 图片无法左右滑动 + 被遮挡 + 无全屏查看 | `post_detail_screen.dart` 重写：图片PageView左右滑动+页码指示器、视频BoxFit.contain+黑色背景保持原比例、点击图片InteractiveViewer全屏缩放(0.5x-4x)、Container白色背景自适应边框 |
+| 2026-05-21 | "我要入驻"文案错误: "摊主" → "商家" | `profile_screen.dart` 文案修正 |
+| 2026-05-21 | 兴趣圈层空态显示"暂无商品" | group_list_screen 改为"暂无小组" |
+| 2026-05-21 | 首页Cosplay/周边/圈层入口大小不一致 + 圈层无独立入口 | 首页重构: Cosplay+周边一行(Expanded等宽)、圈层单独全宽行(独立入口)、导航至GroupListScreen |
+| 2026-05-21 | 分享功能全部无效(复制/保存/微信/更多/长按) | Clipboard.setData复制链接、HttpClient下载保存图片、微信复制提示、更多菜单(举报/不感兴趣)、长按保存 |
+| 2026-05-21 | 我的帖子/收藏无法跳转详情 + 收藏无封面预览 | my_posts_screen + my_bookmarks_screen 添加 onTap → PostDetailScreen + CachedNetworkImage封面 |
+| 2026-05-21 | 关注数/粉丝数不增加 + 可关注自己 | User模型新增 follower_count/following_count 字段、Follow服务事务更新计数、前端隐藏自己帖子的关注按钮 + auth_bloc保存user_id到prefs |
+| 2026-05-21 | APK错误打包为Flutter Demo Home Page | /home/jct 存在独立Flutter Demo项目；必须从 client/ 目录执行 flutter build |
+
 ## APK 信息
 - Release APK: `/home/jct/nexusacg/client/build/app/outputs/flutter-apk/app-release.apk`
 - 大小: 6.8MB (arm64-only)
 - API 地址: `http://101.133.169.72:8080/api/v1`
-- 版本: 0.2.0 (Phase 2)
-- 构建时间: 2026-05-21 11:58
+- 版本: 0.2.1
+- 构建时间: 2026-05-21 16:24
 - 构建命令: `JAVA_HOME=/home/jct/jdks/jdk-17.0.12 flutter build apk --release --target-platform=android-arm64`
 - **注意**: 安装前需先卸载旧版本
 
