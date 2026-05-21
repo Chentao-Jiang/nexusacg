@@ -240,16 +240,27 @@ class ProductCreatePlaceholder extends StatefulWidget {
 class _ProductCreatePlaceholderState extends State<ProductCreatePlaceholder> {
   final _name = TextEditingController(), _desc = TextEditingController(), _price = TextEditingController();
   String _zone = 'cosplay';
+  bool _submitting = false;
 
   Future<void> _submit() async {
-    final res = await ApiClient().post('/products', data: {
-      'name': _name.text, 'description': _desc.text,
-      'price': double.tryParse(_price.text) ?? 0,
-      'zone': _zone, 'status': 'active',
-    });
-    if (mounted && res.data is Map && (res.data as Map)['code'] == 0) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('商品发布成功')));
+    if (_name.text.trim().isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请输入商品名称'))); return; }
+    setState(() => _submitting = true);
+    try {
+      final res = await ApiClient().post('/products', data: {
+        'name': _name.text, 'description': _desc.text,
+        'price': double.tryParse(_price.text) ?? 0,
+        'zone': _zone, 'status': 'active',
+      });
+      if (mounted && res.data is Map && (res.data as Map)['code'] == 0) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('商品发布成功')));
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('发布失败')));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('发布失败: \$e')));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -268,7 +279,7 @@ class _ProductCreatePlaceholderState extends State<ProductCreatePlaceholder> {
           items: const [DropdownMenuItem(value: 'cosplay', child: Text('Cosplay专区')), DropdownMenuItem(value: 'merch', child: Text('周边专区'))],
           onChanged: (v) => setState(() => _zone = v ?? 'cosplay')),
         const SizedBox(height: 24),
-        SizedBox(width: double.infinity, height: 48, child: FilledButton(onPressed: _submit, child: const Text('发布'))),
+        SizedBox(width: double.infinity, height: 48, child: FilledButton(onPressed: _submitting ? null : _submit, child: _submitting ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('发布'))),
       ])),
     );
   }
