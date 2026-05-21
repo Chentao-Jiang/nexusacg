@@ -100,6 +100,9 @@ class ProfileScreen extends StatelessWidget {
                 _menuItem(Icons.favorite, '我的收藏', onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const MyBookmarksScreen()));
                 }),
+                _menuItem(Icons.add_business, '发布商品', onTap: () {
+                  _showComingSoon(context, '发布商品');
+                }),
                 _menuItem(Icons.local_offer, '我的商品', onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const MyProductsScreen()));
                 }),
