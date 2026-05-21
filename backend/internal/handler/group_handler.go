@@ -53,6 +53,7 @@ func (h *GroupHandler) Create(c *gin.Context) {
 	if err := h.svc.Create(&g); err != nil { BadRequest(c, err.Error()); return }
 	// Auto-join creator as owner
 	h.svc.CreateMember(g.ID, uid, "owner")
+	// Non-fatal: group is created, membership will be added on next join
 	Success(c, g)
 }
 
@@ -65,7 +66,10 @@ func (h *GroupHandler) Update(c *gin.Context) {
 	if g.OwnerID != uid { BadRequest(c, "only owner can edit"); return }
 	c.ShouldBindJSON(&g)
 	g.ID = id
-	h.svc.Update(g)
+	if err := h.svc.Update(g); err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
 	Success(c, g)
 }
 

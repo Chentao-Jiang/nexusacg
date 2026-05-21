@@ -64,7 +64,9 @@ func (h *SPHandler) UpdateProfile(c *gin.Context) {
 		BadRequest(c, err.Error())
 		return
 	}
-	Success(c, provider)
+	// Refetch to get the actual ID
+	result, _ := h.svc.GetByUserID(userID)
+	Success(c, result)
 }
 
 func (h *SPHandler) Book(c *gin.Context) {

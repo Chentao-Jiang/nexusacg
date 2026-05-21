@@ -14,7 +14,7 @@ func NewSellerRatingService(db *gorm.DB) *SellerRatingService { return &SellerRa
 func (s *SellerRatingService) Create(sr *model.SellerRating) error {
 	// Verify order exists and belongs to buyer
 	var order model.Order
-	if err := s.db.Where("id = ? AND user_id = ? AND status = ?", sr.OrderID, sr.BuyerID, "completed").First(&order).Error; err != nil {
+	if err := s.db.Where("id = ? AND user_id = ? AND order_status = ?", sr.OrderID, sr.BuyerID, "completed").First(&order).Error; err != nil {
 		return fmt.Errorf("order not found or not completed")
 	}
 	if err := s.db.Create(sr).Error; err != nil {

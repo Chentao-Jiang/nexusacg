@@ -105,10 +105,13 @@ func (s *ServiceProviderSvc) AddReview(userID, providerID uuid.UUID, rating int,
 	}).Error; err != nil { tx.Rollback(); return err }
 
 	// Update avg rating
-	tx.Model(&model.ServiceProvider{}).Where("id = ?", providerID).Updates(map[string]interface{}{
+	if err := tx.Model(&model.ServiceProvider{}).Where("id = ?", providerID).Updates(map[string]interface{}{
 		"rating": gorm.Expr("(SELECT COALESCE(AVG(rating), 0) FROM reviews WHERE service_provider_id = ?)", providerID),
 		"review_count": gorm.Expr("(SELECT COUNT(*) FROM reviews WHERE service_provider_id = ?)", providerID),
-	})
+	}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
 	return tx.Commit().Error
 }
 

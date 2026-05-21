@@ -79,7 +79,10 @@ func (s *GroupService) Leave(groupID, userID uuid.UUID) error {
 		tx.Rollback()
 		return fmt.Errorf("cannot leave (owner or not member)")
 	}
-	tx.Model(&model.Group{}).Where("id = ?", groupID).UpdateColumn("member_count", gorm.Expr("member_count - 1"))
+	if err := tx.Model(&model.Group{}).Where("id = ?", groupID).UpdateColumn("member_count", gorm.Expr("member_count - 1")).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
 	return tx.Commit().Error
 }
 
