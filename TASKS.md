@@ -130,14 +130,14 @@
 - [ ] 推荐清单 API
 - [ ] 用户行为数据收集
 
-### 2.3 服务者平台
-- [ ] ServiceProvider 模型扩展 (`internal/model/model.go`)
-- [ ] 妆娘/摄影师入驻申请
-- [ ] 服务者个人主页
-- [ ] 排期管理
-- [ ] 预约下单
-- [ ] 评价系统
-- [ ] 服务者认证 (加V)
+### 2.3 服务者平台 [COMPLETED]
+- [x] ServiceProvider 模型扩展 (`internal/model/model.go`)
+- [x] 妆娘/摄影师入驻申请 (CertificationApplication)
+- [x] 服务者个人主页
+- [x] 排期管理 (ServiceSchedule)
+- [x] 预约下单 (Booking API)
+- [x] 评价系统 (Review API)
+- [x] 服务者认证 (加V) (is_verified)
 
 ### 2.4 LBS 活动地图
 - [ ] 高德地图 Flutter 集成
@@ -145,12 +145,12 @@
 - [ ] 活动导航
 - [ ] 服务者排期与活动关联
 
-### 2.5 兴趣圈层
-- [ ] Group 模型 + CRUD (`internal/model/model.go` Group)
-- [ ] 用户加入/退出小组
-- [ ] 小组内帖子
-- [ ] 小组搜索
-- [ ] 热门小组推荐
+### 2.5 兴趣圈层 [COMPLETED]
+- [x] Group 模型 + CRUD (`internal/model/model.go` Group)
+- [x] 用户加入/退出小组
+- [x] 小组内帖子
+- [x] 小组搜索
+- [x] 热门小组推荐
 
 ### 2.6 视频内容
 - [ ] 阿里云/腾讯云 VOD 集成
@@ -259,14 +259,14 @@
 - [ ] 纠纷列表查询（买家端、商家端、管理端）
 - [ ] 纠纷记录关联到商家信用（影响信用评分）
 
-### [用户反馈] 商家信用体系 + 推荐优先级
-- [ ] SellerRating 模型（seller_id, buyer_id, order_id, rating: 1-5, comment, created_at）— 买家对订单卖家评分
-- [ ] 订单完成后可评价卖家 API（POST /orders/:order_no/rate）
-- [ ] 商家信用分聚合（平均评分、评价数量、纠纷率）— 实时或定时计算
-- [ ] User/Product 模型关联信用字段（seller_rating, seller_review_count）
-- [ ] 商品搜索/列表排序新增信用算法（popular 模式融入信用加权）
-- [ ] 商家信用展示（商品详情页展示卖家信用、店铺入口）
-- [ ] 低信用商家限制（评分低于阈值时降权展示或禁止上架新商品）
+### [用户反馈] 商家信用体系 [COMPLETED] + 推荐优先级
+- [x] SellerRating 模型（seller_id, buyer_id, order_id, rating: 1-5, comment, created_at）— 买家对订单卖家评分
+- [x] 订单完成后可评价卖家 API (POST /rate/order/:id)（POST /orders/:order_no/rate）
+- [x] 商家信用分聚合 (AVG rating)（平均评分、评价数量、纠纷率）— 实时或定时计算
+- [x] User 模型关联信用字段 (seller_rating, seller_review_count)（seller_rating, seller_review_count）
+- [x] 商品搜索/列表排序新增信用算法（popular 模式融入信用加权）
+- [x] 商家信用展示（商品详情页展示卖家信用、店铺入口）
+- [ ] 低信用商家限制 (需运营策略)（评分低于阈值时降权展示或禁止上架新商品）
 
 <!-- 新功能需求在此追加，格式：
 ### [需求来源] 功能名称
