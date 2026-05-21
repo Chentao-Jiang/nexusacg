@@ -184,12 +184,19 @@ ssh root@101.133.169.72 "curl -s http://localhost:8080/health && docker logs --t
 | 2026-05-21 | 关注数/粉丝数不增加 + 可关注自己 | User模型新增 follower_count/following_count 字段、Follow服务事务更新计数、前端隐藏自己帖子的关注按钮 + auth_bloc保存user_id到prefs |
 | 2026-05-21 | APK错误打包为Flutter Demo Home Page | /home/jct 存在独立Flutter Demo项目；必须从 client/ 目录执行 flutter build |
 
+| 2026-05-21 | 视频比例不符 + 视频与图片同存仅显示视频 | 重写post_detail_screen：视频+图片合并为统一PageView左右滑动、AspectRatio+BoxFit.contain保原比例、页码指示器 |
+| 2026-05-21 | 无上架商品入口 | profile_screen 添加"发布商品"菜单项 |
+| 2026-05-21 | "兴趣圈层"无发帖途径 | GroupDetailScreen FAB发帖按钮(已实现) |
+| 2026-05-21 | 分享复制链接404/保存图片无效/微信无跳转/长按未保存 | AppConstants.apiBaseUrl拼链接、Dio下载图片writeAsBytes到/storage/emulated/0/Pictures、微信提示系统分享、长按保存到相册 |
+| 2026-05-21 | 我的收藏无法跳转详情+无封面预览 | onTap→PostDetailScreen(post: PostModel.fromJson) + CachedNetworkImage封面 |
+| 2026-05-21 | 别人无法在帖子详情页点击关注 | ApiClient().currentUserId检查：非空+非自己才显示关注按钮 |
+
 ## APK 信息
 - Release APK: `/home/jct/nexusacg/client/build/app/outputs/flutter-apk/app-release.apk`
 - 大小: 6.8MB (arm64-only)
 - API 地址: `http://101.133.169.72:8080/api/v1`
-- 版本: 0.2.1
-- 构建时间: 2026-05-21 16:24
+- 版本: 0.2.2
+- 构建时间: 2026-05-21 17:37
 - 构建命令: `JAVA_HOME=/home/jct/jdks/jdk-17.0.12 flutter build apk --release --target-platform=android-arm64`
 - **注意**: 安装前需先卸载旧版本
 
