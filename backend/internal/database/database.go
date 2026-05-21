@@ -51,6 +51,7 @@ func Connect(cfg *config.Config) *gorm.DB {
 		&model.RefundApplication{},
 		&model.Follow{},
 		&model.Bookmark{},
+		&model.Address{},
 	)
 
 	log.Println("database connected and migrated")

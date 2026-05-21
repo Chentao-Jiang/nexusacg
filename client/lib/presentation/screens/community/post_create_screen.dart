@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:nexusacg/core/network/api_client.dart';
 import 'package:nexusacg/core/repositories/repositories.dart';
+import 'package:nexusacg/core/utils/video_thumbnail.dart';
 
 /// Tracks an image being uploaded: local file + remote URL
 class _UploadedImage {
@@ -27,6 +28,7 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
   final _imagePicker = ImagePicker();
   final List<_UploadedImage> _images = [];
   String? _videoUrl;
+  String? _thumbnailUrl;
   String _visibility = 'public'; // public | followers | private
   bool _submitting = false;
   bool _uploadingAny = false;
@@ -105,6 +107,9 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
     });
 
     try {
+      // Generate thumbnail in parallel
+      final thumbFuture = VideoThumbnail.getThumbnail(videoFile.path);
+
       final result = await ApiClient().uploadVideo(
         videoFile,
         onProgress: (sent, total) {
@@ -119,6 +124,16 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
       if (result.isSuccess) {
         setState(() {
           _videoUrl = result.url;
+        });
+
+        // Upload thumbnail
+        final thumbFile = await thumbFuture;
+        if (thumbFile != null) {
+          final thumbUrl = await ApiClient().uploadImage(thumbFile);
+          if (mounted) setState(() => _thumbnailUrl = thumbUrl);
+        }
+
+        setState(() {
           _uploadingVideo = false;
           _uploadingAny = false;
         });
@@ -148,6 +163,7 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
   void _removeVideo() {
     setState(() {
       _videoUrl = null;
+      _thumbnailUrl = null;
       _uploadingVideo = false;
       _videoUploadProgress = 0.0;
     });
@@ -172,7 +188,8 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
     setState(() => _submitting = true);
     try {
       final imageUrls = _images.map((i) => i.url).whereType<String>().toList();
-final result = await _repo.createPost(
+      if (_thumbnailUrl != null) { imageUrls.insert(0, _thumbnailUrl!); }
+      final result = await _repo.createPost(
         title: _titleController.text.trim(),
         content: _contentController.text.trim(),
         images: imageUrls,

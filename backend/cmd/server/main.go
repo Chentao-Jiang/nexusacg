@@ -127,6 +127,7 @@ func main() {
 	refundAppSvc := service.NewRefundApplicationService(db)
 	followSvc := service.NewFollowService(db)
 	bookmarkSvc := service.NewBookmarkService(db)
+	addrSvc := service.NewAddressService(db)
 
 	// Router
 	r := gin.Default()
@@ -186,6 +187,7 @@ func main() {
 	handler.NewRefundApplicationHandler(v1, refundAppSvc, authMW)
 	handler.NewFollowHandler(v1, followSvc, authMW)
 	handler.NewBookmarkHandler(v1, bookmarkSvc, authMW)
+	handler.NewAddressHandler(v1, addrSvc, authMW)
 
 	// Order timeout cron: cancel pending orders after configured timeout
 	if cfg.OrderTimeoutMinutes > 0 {

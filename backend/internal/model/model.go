@@ -151,6 +151,22 @@ type Bookmark struct {
 }
 
 func (Bookmark) TableName() string { return "bookmarks" }
+type Address struct {
+	ID            uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	UserID        uuid.UUID `json:"user_id" gorm:"type:uuid;index;not null"`
+	Name          string    `json:"name"`
+	Phone         string    `json:"phone"`
+	Province      string    `json:"province"`
+	City          string    `json:"city"`
+	District      string    `json:"district"`
+	Detail        string    `json:"detail"`
+	IsDefault     bool      `json:"is_default" gorm:"default:false"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+func (Address) TableName() string { return "addresses" }
+
 
 
 type Group struct {

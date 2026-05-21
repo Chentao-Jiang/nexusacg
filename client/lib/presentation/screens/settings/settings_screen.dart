@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:nexusacg/presentation/screens/profile/edit_profile_screen.dart';
+import 'package:nexusacg/presentation/screens/settings/legal_pages.dart';
+import 'package:nexusacg/presentation/screens/settings/address_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -15,7 +17,9 @@ class SettingsScreen extends StatelessWidget {
             _settingsTile(context, '编辑个人资料', Icons.person_outline, () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen()));
             }),
-            _settingsTile(context, '收货地址', Icons.location_on_outlined, null),
+            _settingsTile(context, '收货地址', Icons.location_on_outlined, () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const AddressListScreen()));
+              }),
             _settingsTile(context, '消息通知', Icons.notifications_outlined, null),
           ]),
           _settingsGroup('通用', [
@@ -25,8 +29,18 @@ class SettingsScreen extends StatelessWidget {
             _settingsTile(context, '关于我们', Icons.info_outline, () {
                 _showAbout(context);
               }),
-            _settingsTile(context, '用户协议', Icons.description_outlined, null),
-            _settingsTile(context, '隐私政策', Icons.security_outlined, null),
+            _settingsTile(context, '用户协议', Icons.description_outlined, () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const LegalPage(
+                  title: '用户协议',
+                  content: userAgreement,
+                )));
+              }),
+            _settingsTile(context, '隐私政策', Icons.security_outlined, () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const LegalPage(
+                  title: '隐私政策',
+                  content: privacyPolicy,
+                )));
+              }),
           ]),
         ],
       ),
