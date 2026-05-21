@@ -241,3 +241,18 @@ func (s *ProductService) Create(ctx context.Context, input CreateProductInput) (
 
 	return &product, nil
 }
+
+func (s *ProductService) GetMyProducts(userID uuid.UUID, page, pageSize int) (*ProductListResult, error) {
+	if pageSize <= 0 { pageSize = 20 }
+	if page <= 0 { page = 1 }
+	var total int64
+	s.db.Model(&model.Product{}).Where("user_id = ?", userID).Count(&total)
+	var results []ProductWithCategory
+	err := s.db.Table("products").
+		Select("products.*, COALESCE(categories.name, '') AS category_name").
+		Joins("LEFT JOIN categories ON products.category_id = categories.id").
+		Where("products.user_id = ?", userID).
+		Order("products.created_at DESC").
+		Offset((page-1)*pageSize).Limit(pageSize).Find(&results).Error
+	return &ProductListResult{Items: results, Total: total, Page: page, Size: pageSize}, err
+}

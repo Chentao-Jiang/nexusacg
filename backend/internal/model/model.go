@@ -143,6 +143,15 @@ type Follow struct {
 }
 
 func (Follow) TableName() string { return "follows" }
+type Bookmark struct {
+	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	UserID    uuid.UUID `json:"user_id" gorm:"type:uuid;uniqueIndex:idx_bookmark;not null"`
+	PostID    uuid.UUID `json:"post_id" gorm:"type:uuid;uniqueIndex:idx_bookmark;not null"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (Bookmark) TableName() string { return "bookmarks" }
+
 
 type Group struct {
 	ID          uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`

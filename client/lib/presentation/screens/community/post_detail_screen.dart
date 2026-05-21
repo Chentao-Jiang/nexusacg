@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:nexusacg/core/models/models.dart';
 import 'package:nexusacg/core/repositories/repositories.dart';
 import 'package:nexusacg/core/repositories/follow_repository.dart';
+import 'package:nexusacg/core/network/api_client.dart';
 import 'package:video_player/video_player.dart';
 
 class PostDetailScreen extends StatefulWidget {
@@ -23,6 +24,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   final _followRepo = FollowRepository();
   late bool _liked;
   late bool _collected;
+  late bool _bookmarked;
   late bool _isFollowing;
   int _currentImageIndex = 0;
 
@@ -31,6 +33,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     super.initState();
     _liked = false;
     _collected = false;
+    _bookmarked = false;
     _isFollowing = false;
     _initVideo();
     _checkFollow();
@@ -91,11 +94,20 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     } catch (_) {}
   }
 
-  void _toggleCollect() {
-    setState(() => _collected = !_collected);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_collected ? '已收藏' : '已取消收藏')),
-    );
+  Future<void> _toggleBookmark() async {
+    try {
+      if (_bookmarked) {
+        await ApiClient().delete('/posts/${widget.post.id}/bookmark');
+        if (mounted) setState(() => _bookmarked = false);
+      } else {
+        await ApiClient().post('/posts/${widget.post.id}/bookmark');
+        if (mounted) setState(() => _bookmarked = true);
+      }
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('操作失败')),
+      );
+    }
   }
 
   void _showShareSheet() {
@@ -309,10 +321,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     onTap: () => _scrollToComments(),
                   ),
                   _bottomAction(
-                    icon: _collected ? Icons.star : Icons.star_border,
-                    label: _collected ? '已收藏' : '收藏',
-                    color: _collected ? Colors.amber : Colors.black54,
-                    onTap: _toggleCollect,
+                    icon: _bookmarked ? Icons.bookmark : Icons.bookmark_border,
+                    label: _bookmarked ? '已收藏' : '收藏',
+                    color: _bookmarked ? Colors.amber : Colors.black54,
+                    onTap: _toggleBookmark,
                   ),
                   _bottomAction(
                     icon: Icons.share_outlined,

@@ -40,8 +40,10 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('次元链', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
-          IconButton(icon: const Icon(Icons.search), onPressed: () => _showComingSoon('搜索')),
-          IconButton(icon: const Icon(Icons.notifications_outlined), onPressed: () => _showComingSoon('消息通知')),
+          IconButton(icon: const Icon(Icons.search), onPressed: () => _showSearch(context)),
+          IconButton(icon: const Icon(Icons.notifications_outlined), onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const _NotificationsPage()));
+              }),
         ],
       ),
       body: RefreshIndicator(
@@ -167,13 +169,54 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$feature 功能开发中')),
-    );
+  void _showSearch(BuildContext context) {
+    showSearch(context: context, delegate: _SimpleSearchDelegate());
   }
 
   String _formatDate(DateTime dt) {
     return '${dt.month}月${dt.day}日';
+  }
+
+}
+
+class _SimpleSearchDelegate extends SearchDelegate<String> {
+  @override
+  List<Widget> buildActions(BuildContext context) => [
+        IconButton(icon: const Icon(Icons.clear), onPressed: () => query = ''),
+      ];
+
+  @override
+  Widget buildLeading(BuildContext context) =>
+      IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => close(context, ''));
+
+  @override
+  Widget buildResults(BuildContext context) => _buildSearchResults(context);
+
+  @override
+  Widget buildSuggestions(BuildContext context) => _buildSearchResults(context);
+
+  Widget _buildSearchResults(BuildContext context) {
+    if (query.isEmpty) return const Center(child: Text('输入关键词搜索'));
+    return Center(child: Text('搜索: $query\n搜索功能建设中'));
+  }
+}
+
+class _NotificationsPage extends StatelessWidget {
+  const _NotificationsPage();
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('消息通知')),
+      body: const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.notifications_none, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('暂无通知', style: TextStyle(color: Colors.grey, fontSize: 15)),
+          ],
+        ),
+      ),
+    );
   }
 }

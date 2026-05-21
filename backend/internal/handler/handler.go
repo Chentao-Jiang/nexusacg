@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"strconv"
 	"log"
 
 	"github.com/gin-gonic/gin"
@@ -1333,6 +1334,20 @@ func (h *ServiceProductHandler) Create(c *gin.Context) {
 	}
 	Success(c, product)
 }
+
+func (h *ProductHandler) MyProducts(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	uid, _ := uuid.Parse(userID.(string))
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	result, err := h.svc.GetMyProducts(uid, page, pageSize)
+	if err != nil {
+		InternalError(c, err.Error())
+		return
+	}
+	Success(c, result)
+}
+
 
 func (h *ServiceProductHandler) Update(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))

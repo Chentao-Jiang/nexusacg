@@ -8,6 +8,8 @@ import 'package:nexusacg/presentation/screens/settings/settings_screen.dart';
 import 'package:nexusacg/presentation/screens/community/my_posts_screen.dart';
 import 'package:nexusacg/presentation/screens/community/follow_list_screen.dart';
 import 'package:nexusacg/presentation/screens/profile/my_registrations_screen.dart';
+import 'package:nexusacg/presentation/screens/community/my_bookmarks_screen.dart';
+import 'package:nexusacg/presentation/screens/profile/my_products_screen.dart';
 import 'package:nexusacg/presentation/screens/profile/edit_profile_screen.dart';
 import 'package:nexusacg/presentation/screens/certification/certification_screen.dart';
 
@@ -95,8 +97,12 @@ class ProfileScreen extends StatelessWidget {
                 _menuItem(Icons.article_outlined, '我的帖子', onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const MyPostsScreen()));
                 }),
-                _menuItem(Icons.favorite, '我的收藏', onTap: () => _showComingSoon(context, '我的收藏')),
-                _menuItem(Icons.local_offer, '我的商品', onTap: () => _showComingSoon(context, '我的商品')),
+                _menuItem(Icons.favorite, '我的收藏', onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const MyBookmarksScreen()));
+                }),
+                _menuItem(Icons.local_offer, '我的商品', onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const MyProductsScreen()));
+                }),
                 _menuItem(Icons.bookmark, '我的预约', onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const MyRegistrationsScreen()));
                 }),
