@@ -203,6 +203,18 @@ type GroupMember struct {
 }
 
 func (GroupMember) TableName() string { return "group_members" }
+type SellerRating struct {
+	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	SellerID  uuid.UUID `json:"seller_id" gorm:"type:uuid;index;not null"`
+	BuyerID   uuid.UUID `json:"buyer_id" gorm:"type:uuid;not null"`
+	OrderID   uuid.UUID `json:"order_id" gorm:"type:uuid;uniqueIndex"`
+	Rating    int       `json:"rating" gorm:"not null"` // 1-5
+	Comment   string    `json:"comment"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (SellerRating) TableName() string { return "seller_ratings" }
+
 
 
 type Event struct {
