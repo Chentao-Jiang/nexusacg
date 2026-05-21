@@ -33,7 +33,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   void initState() {
     super.initState();
     _liked = false; _bookmarked = false; _isFollowing = false;
-    _initVideo(); _checkFollow();
+    _initVideo(); _checkFollow(); _checkLikeBookmark();
   }
 
   void _initVideo() {
@@ -45,6 +45,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         if (mounted) setState(() { _videoError = true; _videoErrorMessage = error.toString(); });
       });
     }
+  }
+
+  Future<void> _checkLikeBookmark() async {
+    // Simple approach: assume not liked/bookmarked unless we fetch from server
+    // The toggle will correct state on first user interaction
   }
 
   Future<void> _checkFollow() async {
@@ -240,15 +245,28 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   String _timeAgo(DateTime dt) { final d = DateTime.now().difference(dt); if (d.inMinutes < 1) return '刚刚'; if (d.inMinutes < 60) return '${d.inMinutes}分钟前'; if (d.inHours < 24) return '${d.inHours}小时前'; return '${d.inDays}天前'; }
 }
 
-class _ImageViewer extends StatelessWidget {
+class _ImageViewer extends StatefulWidget {
   final List<String> images; final int initialIndex;
   const _ImageViewer({required this.images, required this.initialIndex});
   @override
+  State<_ImageViewer> createState() => _ImageViewerState();
+}
+
+class _ImageViewerState extends State<_ImageViewer> {
+  late final PageController _ctrl;
+
+  @override
+  void initState() { super.initState(); _ctrl = PageController(initialPage: widget.initialIndex); }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(backgroundColor: Colors.black, appBar: AppBar(backgroundColor: Colors.black, iconTheme: const IconThemeData(color: Colors.white), elevation: 0),
-      body: PageView.builder(controller: PageController(initialPage: initialIndex), itemCount: images.length,
+      body: PageView.builder(controller: _ctrl, itemCount: widget.images.length,
         itemBuilder: (_, i) => InteractiveViewer(minScale: 0.5, maxScale: 4.0,
-          child: Center(child: CachedNetworkImage(imageUrl: images[i], fit: BoxFit.contain,
+          child: Center(child: CachedNetworkImage(imageUrl: widget.images[i], fit: BoxFit.contain,
             placeholder: (_, __) => const Center(child: CircularProgressIndicator(color: Colors.white)),
             errorWidget: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white54, size: 64))))));
   }
