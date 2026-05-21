@@ -14,7 +14,8 @@ class _UploadedImage {
 }
 
 class PostCreateScreen extends StatefulWidget {
-  const PostCreateScreen({super.key});
+  final String? groupId;
+  const PostCreateScreen({super.key, this.groupId});
 
   @override
   State<PostCreateScreen> createState() => _PostCreateScreenState();
@@ -181,6 +182,7 @@ final result = await _repo.createPost(
         images: imageUrls,
         videoUrl: _videoUrl,
         visibility: _visibility,
+        groupId: widget.groupId,
       );
       if (mounted) {
         if (result != null) {

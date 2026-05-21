@@ -133,7 +133,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> with SingleTicker
       ),
       floatingActionButton: _joined ? FloatingActionButton(
         onPressed: () => Navigator.push(context, MaterialPageRoute(
-          builder: (_) => PostCreateScreen(),
+          builder: (_) => PostCreateScreen(groupId: widget.groupId),
         )).then((_) => _load()),
         child: const Icon(Icons.edit),
       ) : null,

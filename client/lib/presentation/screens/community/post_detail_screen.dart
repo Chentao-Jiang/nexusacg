@@ -40,7 +40,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     if (widget.post.videoUrl != null) {
       _videoController = VideoPlayerController.networkUrl(Uri.parse(widget.post.videoUrl!));
       _videoController!.initialize().then((_) {
-        if (mounted) { setState(() => _videoInitialized = true); _videoController!.setLooping(true); }
+        if (mounted) { setState(() => _videoInitialized = true); _videoController!.setLooping(true); _videoController!.play(); _playing = true; }
       }).catchError((error) {
         if (mounted) setState(() { _videoError = true; _videoErrorMessage = error.toString(); });
       });
@@ -88,7 +88,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       padding: const EdgeInsets.symmetric(vertical: 20),
       child: Wrap(children: [
         ListTile(leading: const Icon(Icons.copy, color: Colors.blue), title: const Text('复制链接'),
-          onTap: () { Navigator.pop(ctx); Clipboard.setData(ClipboardData(text: '${AppConstants.apiBaseUrl}/posts/${widget.post.id}')); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('链接已复制'))); }),
+          onTap: () { Navigator.pop(ctx); Clipboard.setData(ClipboardData(text: 'nexusacg://post?id=${widget.post.id}')); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('链接已复制'))); }),
         ListTile(leading: const Icon(Icons.wechat, color: Colors.green), title: const Text('分享到微信'),
           onTap: () { Navigator.pop(ctx); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请使用系统分享'))); }),
         if (widget.post.images.isNotEmpty)
@@ -109,6 +109,20 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已保存到相册')));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('保存失败: $e')));
+    }
+  }
+
+  Future<void> _saveVideo() async {
+    if (widget.post.videoUrl == null) return;
+    try {
+      final dir = Directory('/storage/emulated/0/Movies');
+      if (!await dir.exists()) await dir.create(recursive: true);
+      final file = File('\${dir.path}/nexusacg_video_\${DateTime.now().millisecondsSinceEpoch}.mp4');
+      final resp = await ApiClient().dio.get(widget.post.videoUrl!, options: Options(responseType: ResponseType.bytes));
+      await file.writeAsBytes(resp.data);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('视频已保存')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('保存失败: \$e')));
     }
   }
 

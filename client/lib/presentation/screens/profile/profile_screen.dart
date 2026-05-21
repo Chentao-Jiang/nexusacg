@@ -8,6 +8,7 @@ import 'package:nexusacg/presentation/screens/settings/settings_screen.dart';
 import 'package:nexusacg/presentation/screens/community/my_posts_screen.dart';
 import 'package:nexusacg/presentation/screens/community/follow_list_screen.dart';
 import 'package:nexusacg/presentation/screens/profile/my_registrations_screen.dart';
+import 'package:nexusacg/core/network/api_client.dart';
 import 'package:nexusacg/presentation/screens/community/my_bookmarks_screen.dart';
 import 'package:nexusacg/presentation/screens/profile/my_products_screen.dart';
 import 'package:nexusacg/presentation/screens/profile/edit_profile_screen.dart';
@@ -101,7 +102,7 @@ class ProfileScreen extends StatelessWidget {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const MyBookmarksScreen()));
                 }),
                 _menuItem(Icons.add_business, '发布商品', onTap: () {
-                  _showComingSoon(context, '发布商品');
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductCreatePlaceholder()));
                 }),
                 _menuItem(Icons.local_offer, '我的商品', onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const MyProductsScreen()));
@@ -225,6 +226,50 @@ class _HelpScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+
+class ProductCreatePlaceholder extends StatefulWidget {
+  const ProductCreatePlaceholder({super.key});
+  @override
+  State<ProductCreatePlaceholder> createState() => _ProductCreatePlaceholderState();
+}
+class _ProductCreatePlaceholderState extends State<ProductCreatePlaceholder> {
+  final _name = TextEditingController(), _desc = TextEditingController(), _price = TextEditingController();
+  String _zone = 'cosplay';
+
+  Future<void> _submit() async {
+    final res = await ApiClient().post('/products', data: {
+      'name': _name.text, 'description': _desc.text,
+      'price': double.tryParse(_price.text) ?? 0,
+      'zone': _zone, 'status': 'active',
+    });
+    if (mounted && res.data is Map && (res.data as Map)['code'] == 0) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('商品发布成功')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('发布商品')),
+      body: SingleChildScrollView(padding: const EdgeInsets.all(16), child: Column(children: [
+        TextField(controller: _name, decoration: const InputDecoration(labelText: '商品名称', border: OutlineInputBorder())),
+        const SizedBox(height: 12),
+        TextField(controller: _desc, decoration: const InputDecoration(labelText: '描述', border: OutlineInputBorder()), maxLines: 3),
+        const SizedBox(height: 12),
+        TextField(controller: _price, decoration: const InputDecoration(labelText: '价格', border: OutlineInputBorder()), keyboardType: TextInputType.number),
+        const SizedBox(height: 12),
+        DropdownButtonFormField(value: _zone, decoration: const InputDecoration(labelText: '分区', border: OutlineInputBorder()),
+          items: const [DropdownMenuItem(value: 'cosplay', child: Text('Cosplay专区')), DropdownMenuItem(value: 'merch', child: Text('周边专区'))],
+          onChanged: (v) => setState(() => _zone = v ?? 'cosplay')),
+        const SizedBox(height: 24),
+        SizedBox(width: double.infinity, height: 48, child: FilledButton(onPressed: _submit, child: const Text('发布'))),
+      ])),
     );
   }
 }

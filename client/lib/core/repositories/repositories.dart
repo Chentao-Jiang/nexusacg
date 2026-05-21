@@ -69,11 +69,13 @@ class PostRepository {
     String? videoUrl,
     List<String> tags = const [],
     String? visibility,
+    String? groupId,
   }) async {
     final body = <String, dynamic>{'content': content};
     if (title.isNotEmpty) body['title'] = title;
     if (images.isNotEmpty) body['images'] = images;
     if (videoUrl != null) body['video_url'] = videoUrl;
+    if (groupId != null) body['group_id'] = groupId;
     if (tags.isNotEmpty) body['tags'] = tags;
     if (visibility != null) body['visibility'] = visibility;
     final response = await _api.post('/posts', data: body);
@@ -87,12 +89,14 @@ class PostRepository {
     String? videoUrl,
     List<String>? tags,
     String? visibility,
+    String? groupId,
   }) async {
     final body = <String, dynamic>{};
     if (title != null) body['title'] = title;
     if (content != null) body['content'] = content;
     if (images != null) body['images'] = images;
     if (videoUrl != null) body['video_url'] = videoUrl;
+    if (groupId != null) body['group_id'] = groupId;
     if (tags != null) body['tags'] = tags;
     if (visibility != null) body['visibility'] = visibility;
     final response = await _api.put('/posts/$postId', data: body);
