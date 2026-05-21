@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:nexusacg/core/models/models.dart';
 import 'package:nexusacg/core/repositories/repositories.dart';
+import 'package:nexusacg/presentation/screens/community/comments_screen.dart';
 import 'package:nexusacg/core/repositories/follow_repository.dart';
 import 'package:nexusacg/core/network/api_client.dart';
 import 'package:video_player/video_player.dart';
@@ -331,7 +332,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     label: '分享',
                     color: Colors.black54,
                     onTap: () => _showShareSheet(),
-                  ),
                   ),
                 ],
               ),

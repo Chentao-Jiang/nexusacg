@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:nexusacg/presentation/screens/profile/edit_profile_screen.dart';
 import 'package:nexusacg/presentation/screens/settings/legal_pages.dart';
+import 'package:nexusacg/presentation/screens/settings/legal_content.dart';
 import 'package:nexusacg/presentation/screens/settings/address_screen.dart';
 
 class SettingsScreen extends StatelessWidget {

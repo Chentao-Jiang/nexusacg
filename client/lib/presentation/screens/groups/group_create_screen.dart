@@ -80,9 +80,3 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
   }
 }
 
-  @override
-  void dispose() {
-    _nameCtrl.dispose();
-    _descCtrl.dispose();
-    super.dispose();
-  }

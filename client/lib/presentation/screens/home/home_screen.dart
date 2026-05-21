@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:nexusacg/core/repositories/repositories.dart';
 import 'package:nexusacg/core/models/models.dart';
 import 'package:nexusacg/presentation/screens/products/product_screen.dart';
+import 'package:nexusacg/presentation/screens/chat/conversations_screen.dart';
+import 'package:nexusacg/presentation/screens/groups/group_list_screen.dart';
+import 'package:nexusacg/presentation/screens/community/community_screen.dart';
 
 // Home screen implementation with product zones, featured events, and community feed
 class HomeScreen extends StatefulWidget {
