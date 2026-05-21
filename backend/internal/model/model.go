@@ -166,6 +166,17 @@ type Address struct {
 }
 
 func (Address) TableName() string { return "addresses" }
+type Message struct {
+	ID           uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	SenderID     uuid.UUID `json:"sender_id" gorm:"type:uuid;index;not null"`
+	ReceiverID   uuid.UUID `json:"receiver_id" gorm:"type:uuid;index;not null"`
+	Content      string    `json:"content"`
+	IsRead       bool      `json:"is_read" gorm:"default:false"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+func (Message) TableName() string { return "messages" }
+
 
 
 

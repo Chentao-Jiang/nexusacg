@@ -44,6 +44,9 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(icon: const Icon(Icons.notifications_outlined), onPressed: () {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const _NotificationsPage()));
               }),
+          IconButton(icon: const Icon(Icons.message_outlined), onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const ConversationsScreen()));
+              }),
         ],
       ),
       body: RefreshIndicator(
