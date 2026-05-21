@@ -97,7 +97,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     try {
       if (_liked) { await _repo.unlikePost(widget.post.id); }
       else { await _repo.likePost(widget.post.id); }
-      setState(() => _liked = !_liked);
+      if (mounted) setState(() => _liked = !_liked);
     } catch (_) {}
   }
 
@@ -169,7 +169,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       final response = await request.close();
       await response.pipe(file.openWrite());
       httpClient.close();
-      await file.writeAsBytes(await file.readAsBytes());
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('图片已保存到临时目录')));
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('保存失败: $e')));
@@ -392,6 +391,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             const SizedBox(height: 12),
             ElevatedButton.icon(
               onPressed: () {
+                _videoController?.dispose();
                 setState(() { _videoError = false; _videoInitialized = false; });
                 _initVideo();
               },

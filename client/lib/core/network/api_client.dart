@@ -48,6 +48,7 @@ class ApiClient {
       if (token != null) {
         prefs.setString('access_token', token);
       } else {
+        _currentUserId = null;
         prefs.remove('user_id');
         prefs.remove('access_token');
       }
@@ -56,6 +57,13 @@ class ApiClient {
 
   Dio get dio => _dio;
   String? get currentUserId => _currentUserId;
+  set currentUserId(String? id) {
+    _currentUserId = id;
+    SharedPreferences.getInstance().then((p) {
+      if (id != null) p.setString('user_id', id);
+      else p.remove('user_id');
+    });
+  }
 
   Future<Response<T>> get<T>(String path, {Map<String, dynamic>? queryParameters}) async {
     return _dio.get<T>(path, queryParameters: queryParameters);

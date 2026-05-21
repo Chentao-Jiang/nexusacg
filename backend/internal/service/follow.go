@@ -28,8 +28,8 @@ func (s *FollowService) Follow(followerID, followingID uuid.UUID) error {
 	}
 	// Only update counts if insert succeeded (RowsAffected > 0)
 	if tx.RowsAffected > 0 {
-		tx.Model(&model.User{}).Where("id = ?", followerID).UpdateColumn("following_count", gorm.Expr("following_count + 1"))
-		tx.Model(&model.User{}).Where("id = ?", followingID).UpdateColumn("follower_count", gorm.Expr("follower_count + 1"))
+		if err := tx.Model(&model.User{}).Where("id = ?", followerID).UpdateColumn("following_count", gorm.Expr("following_count + 1")).Error; err != nil { tx.Rollback(); return err }
+		if err := tx.Model(&model.User{}).Where("id = ?", followingID).UpdateColumn("follower_count", gorm.Expr("follower_count + 1")).Error; err != nil { tx.Rollback(); return err }
 	}
 	return tx.Commit().Error
 }
@@ -42,8 +42,8 @@ func (s *FollowService) Unfollow(followerID, followingID uuid.UUID) error {
 		return res.Error
 	}
 	if res.RowsAffected > 0 {
-		tx.Model(&model.User{}).Where("id = ?", followerID).UpdateColumn("following_count", gorm.Expr("GREATEST(following_count - 1, 0)"))
-		tx.Model(&model.User{}).Where("id = ?", followingID).UpdateColumn("follower_count", gorm.Expr("GREATEST(follower_count - 1, 0)"))
+		if err := tx.Model(&model.User{}).Where("id = ?", followerID).UpdateColumn("following_count", gorm.Expr("GREATEST(following_count - 1, 0)")).Error; err != nil { tx.Rollback(); return err }
+		if err := tx.Model(&model.User{}).Where("id = ?", followingID).UpdateColumn("follower_count", gorm.Expr("GREATEST(follower_count - 1, 0)")).Error; err != nil { tx.Rollback(); return err }
 	}
 	return tx.Commit().Error
 }

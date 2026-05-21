@@ -1,12 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nexusacg/core/network/api_client.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nexusacg/core/models/models.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nexusacg/core/repositories/repositories.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nexusacg/presentation/blocs/auth/auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
